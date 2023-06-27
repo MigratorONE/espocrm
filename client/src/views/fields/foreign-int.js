@@ -36,10 +36,14 @@ define('views/fields/foreign-int',
         setup: function () {
             Dep.prototype.setup.call(this);
 
-            /** @var {module:helpers/misc/foreign-field.Class} */
+            /** @var {module:helpers/misc/foreign-field} */
             let helper = new Helper(this);
 
             let foreignParams = helper.getForeignParams();
+
+            for (let param in foreignParams) {
+                this.params[param] = foreignParams[param];
+            }
 
             this.disableFormatting = foreignParams.disableFormatting;
         },

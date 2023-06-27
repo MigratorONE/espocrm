@@ -32,6 +32,8 @@ const archiver = require('archiver');
 const process = require('process');
 const buildUtils = require('./build-utils');
 
+const bundleConfig = require('../frontend/bundle-config.json');
+
 const exec = cp.exec;
 
 /**
@@ -279,9 +281,16 @@ class Diff
 
             libData.filesToCopy.forEach(item => fileList.push(item));
 
-            fileList.push('client/lib/espo.min.js');
-            fileList.push('client/lib/espo.min.js.map');
-            fileList.push('client/lib/original/espo.js');
+            fileList.push('client/lib/espo.js');
+            fileList.push('client/lib/espo.js.map');
+
+            Object.keys(bundleConfig.chunks)
+                .map(name => {
+                    let namePart = 'espo-' + name;
+
+                    fileList.push(`client/lib/${namePart}.js`);
+                    fileList.push(`client/lib/${namePart}.js.map`);
+                });
 
             fs.readdirSync('client/css/espo/').forEach(file => {
                 fileList.push('client/css/espo/' + file);

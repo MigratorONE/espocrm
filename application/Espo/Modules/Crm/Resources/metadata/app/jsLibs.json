@@ -1,5 +1,5 @@
 {
-    "full-calendar": {
+    "fullcalendar": {
         "path": "client/modules/crm/lib/fullcalendar.js",
         "devPath": "client/modules/crm/lib/original/fullcalendar.js",
         "exportsTo": "$.fn",
@@ -9,7 +9,6 @@
     "vis": {
         "path": "client/modules/crm/lib/vis.js",
         "devPath": "client/modules/crm/lib/original/vis.js",
-        "exportsAs": "vis",
         "sourceMap": true
     }
 }

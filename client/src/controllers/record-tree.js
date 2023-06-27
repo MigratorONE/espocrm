@@ -47,9 +47,10 @@ define('controllers/record-tree', ['controllers/record'], function (Dep) {
             this.handleCheckAccess('read');
         },
 
-        actionListTree: function (options) {
-            this.getCollection(function (collection) {
-                collection.url = collection.name + '/action/listTree';
+        actionListTree: function () {
+            this.getCollection().then(collection => {
+                collection.url = collection.entityType + '/action/listTree';
+
                 this.main(this.getViewName('listTree'), {
                     scope: this.name,
                     collection: collection

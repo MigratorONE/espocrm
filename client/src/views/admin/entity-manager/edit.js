@@ -28,15 +28,15 @@
 
 define('views/admin/entity-manager/edit', ['view', 'model'],
 /**
- * @param {module:view.Class#} Dep
- * @param {typeof module:model.Class} Model
+ * @param {module:view#} Dep
+ * @param {typeof module:model} Model
  */
 function (Dep, Model) {
 
     /**
      * @class
      * @name Class
-     * @extends module:view.Class
+     * @extends module:view
      * @memberOf module:views/admin/entity-manager/edit
      */
     return Dep.extend(/** @lends module:views/admin/entity-manager/edit.Class# */{
@@ -750,7 +750,7 @@ function (Dep, Model) {
                     return false;
                 }
 
-                if (!this.getFieldManager().isScopeFieldAvailable(scope, item)) {
+                if (!this.getFieldManager().isEntityTypeFieldAvailable(scope, item)) {
                     return false;
                 }
 
@@ -802,7 +802,7 @@ function (Dep, Model) {
                             return false;
                         }
 
-                        if (!this.getFieldManager().isScopeFieldAvailable(foreignEntityType, item)) {
+                        if (!this.getFieldManager().isEntityTypeFieldAvailable(foreignEntityType, item)) {
                             return false;
                         }
 

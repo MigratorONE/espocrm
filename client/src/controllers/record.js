@@ -61,7 +61,7 @@ class RecordController extends Controller {
      * Get a view name/path.
      *
      * @protected
-     * @param {'list'|'detail'|'edit'|'create'|'listRelated'} type A type.
+     * @param {'list'|'detail'|'edit'|'create'|'listRelated'|string} type A type.
      * @returns {string}
      */
     getViewName(type) {
@@ -103,13 +103,14 @@ class RecordController extends Controller {
                 mediator: mediator,
             };
 
-            this.main(
-                this.getViewName('list'),
-                viewOptions,
-                null,
-                isReturn,
-                key
-            );
+            const viewName = this.getViewName('list');
+
+            const params = {
+                useStored: isReturn,
+                key: key,
+            };
+
+            this.main(viewName, viewOptions, null, params);
         });
     }
 

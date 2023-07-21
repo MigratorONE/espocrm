@@ -81,7 +81,7 @@ define('crm:views/record/panels/tasks', ['views/record/panels/relationship'], fu
         },
 
         setup: function () {
-            this.parentScope = this.model.name;
+            this.parentScope = this.model.entityType;
             this.link = 'tasks';
 
             this.panelName = 'tasksSide';
@@ -92,7 +92,7 @@ define('crm:views/record/panels/tasks', ['views/record/panels/relationship'], fu
                 this.link = 'tasksPrimary';
             }
 
-            this.url = this.model.name + '/' + this.model.id + '/' + this.link;
+            this.url = this.model.entityType + '/' + this.model.id + '/' + this.link;
 
             this.setupSorting();
 
@@ -127,7 +127,7 @@ define('crm:views/record/panels/tasks', ['views/record/panels/relationship'], fu
 
         afterRender: function () {
             this.createView('list', 'views/record/list-expanded', {
-                el: this.getSelector() + ' > .list-container',
+                selector: '> .list-container',
                 pagination: false,
                 type: 'listRelationship',
                 rowActionsView: this.defs.rowActionsView || this.rowActionsView,

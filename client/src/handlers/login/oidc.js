@@ -26,10 +26,10 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-import Dep from 'handlers/login';
+import LoginHandler from 'handlers/login';
 import Base64 from 'js-base64';
 
-class Handler extends Dep {
+class OidcLoginHandler extends LoginHandler {
 
     /** @inheritDoc */
     process() {
@@ -41,7 +41,10 @@ class Handler extends Dep {
                     Espo.Ui.notify(false);
 
                     this.processWithData(data)
-                        .then((code, nonce) => {
+                        .then(info => {
+                            let code = info.code;
+                            let nonce = info.nonce;
+
                             let authString = Base64.encode('**oidc:' + code);
 
                             let headers = {
@@ -75,7 +78,7 @@ class Handler extends Dep {
      *  prompt: 'login'|'consent'|'select_account',
      *  maxAge: ?Number,
      * }} data
-     * @return {Promise}
+     * @return {Promise<{code: string, nonce: string}>}
      */
     processWithData(data) {
         let state = (Math.random() + 1).toString(36).substring(7);
@@ -114,7 +117,7 @@ class Handler extends Dep {
      * @param {string} url
      * @param {string} state
      * @param {string} nonce
-     * @return {Promise}
+     * @return {Promise<{code: string, nonce: string}>}
      */
     processWindow(url, state, nonce) {
         let proxy = window.open(url, 'ConnectWithOAuth', 'location=0,status=0,width=800,height=800');
@@ -177,7 +180,10 @@ class Handler extends Dep {
                     window.clearInterval(interval);
                     proxy.close();
 
-                    resolve(parsedData.code, nonce);
+                    resolve({
+                        code: parsedData.code,
+                        nonce: nonce,
+                    });
                 }
             }, 300);
         });
@@ -209,4 +215,4 @@ class Handler extends Dep {
     }
 }
 
-export default Handler;
+export default OidcLoginHandler;

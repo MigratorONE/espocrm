@@ -26,6 +26,8 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
+/** @module views/site/master */
+
 import View from 'view';
 import $ from 'jquery';
 
@@ -43,7 +45,7 @@ class MasterSiteView extends View {
             view: false,
         },
         footer: {
-            el: 'body > footer',
+            fullSelector: 'body > footer',
             view: 'views/site/footer',
         },
     }

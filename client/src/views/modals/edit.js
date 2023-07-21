@@ -43,7 +43,6 @@ class EditModalView extends ModalView {
     fullFormDisabled = false
     editView = null
     escapeDisabled = true
-    fitHeight = true
     className = 'dialog dialog-record'
     sideDisabled = false
     bottomDisabled = false
@@ -193,13 +192,13 @@ class EditModalView extends ModalView {
     createRecordView(model, callback) {
         let viewName =
             this.editView ||
-            this.getMetadata().get(['clientDefs', model.name, 'recordViews', 'editSmall']) ||
-            this.getMetadata().get(['clientDefs', model.name, 'recordViews', 'editQuick']) ||
+            this.getMetadata().get(['clientDefs', model.entityType, 'recordViews', 'editSmall']) ||
+            this.getMetadata().get(['clientDefs', model.entityType, 'recordViews', 'editQuick']) ||
             'views/record/edit-small';
 
         let options = {
             model: model,
-            el: this.containerSelector + ' .edit-container',
+            fullSelector: this.containerSelector + ' .edit-container',
             type: 'editSmall',
             layoutName: this.layoutName || 'detailSmall',
             buttonsDisabled: true,
@@ -318,7 +317,7 @@ class EditModalView extends ModalView {
                         let msg = this.translate('Created')  + '\n' +
                             `[${name}](${url})`;
 
-                        Espo.Ui.notify(msg, 'success', 4000, true);
+                        Espo.Ui.notify(msg, 'success', 4000, {suppress: true});
                     }
 
                     return;
@@ -338,13 +337,14 @@ class EditModalView extends ModalView {
         this.actionSave({bypassClose: true});
     }
 
+    // noinspection JSUnusedGlobalSymbols
     actionFullForm() {
-        var url;
-        var router = this.getRouter();
+        let url;
+        let router = this.getRouter();
 
-        var attributes;
-        var model;
-        var options;
+        let attributes;
+        let model;
+        let options;
 
         if (!this.id) {
             url = '#' + this.scope + '/create';

@@ -287,7 +287,6 @@
     },
     "messages": {
         "pleaseWait": "Please wait...",
-        "posting": "Posting...",
         "loading": "Loading...",
         "saving": "Saving...",
         "confirmLeaveOutMessage": "Are you sure you want to leave the form?",
@@ -373,6 +372,7 @@
         "noAccessToRecord": "Operation requires `{action}` access to record.",
         "noAccessToForeignRecord": "Operation requires `{action}` access to foreign record.",
         "noLinkAccess": "No access to link operation for a specific record.",
+        "cannotUnrelateRequiredLink": "Can't unrelate required link.",
         "cannotRelateNonExisting": "Can't relate with non-existing {foreignEntityType} record.",
         "cannotRelateForbidden": "Can't relate with forbidden {foreignEntityType} record. `{action}` access required.",
         "cannotRelateForbiddenLink": "No access to link '{link}'.",
@@ -880,5 +880,12 @@
         "date_valid": "Invalid date value.",
         "enum_valid": "Invalid enum value. The value must be one of defined enum options. An empty value is allowed only if the field has an empty option.",
         "multiEnum_valid": "Invalid multi-enum value. Values must be one of defined field options."
+    },
+    "navbarTabs": {
+        "Business": "Business",
+        "Marketing": "Marketing",
+        "Support": "Support",
+        "CRM": "CRM",
+        "Activities": "Activities"
     }
 }

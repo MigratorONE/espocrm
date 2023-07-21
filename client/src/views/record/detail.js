@@ -37,19 +37,43 @@ import ActionItemSetup from 'helpers/action-item-setup';
  */
 class DetailRecordView extends BaseRecordView {
 
+    /**
+     * @typedef {Object} module:views/record/detail~options
+     *
+     * @property {module:model} model A model.
+     * @property {string} [scope] A scope.
+     * @property {string} [layoutName] A layout name.
+     * @property {module:views/record/detail~panelDefs[]} [detailLayout] A detail layout.
+     * @property {boolean} [readOnly] Read-only.
+     * @property {string} [rootUrl]
+     * @property {string} [returnUrl]
+     * @property {boolean} [returnAfterCreate]
+     * @property {boolean} [editModeDisabled]
+     * @property {boolean} [confirmLeaveDisabled]
+     * @property {boolean} [editModeDisabled]
+     * @property {boolean} [isWide]
+     * @property {string} [sideView]
+     * @property {string} [bottomView]
+     * @property {string} [inlineEditDisabled] Disable inline edit.
+     * @property {string} [navigateButtonsDisabled]
+     * @property {Object} [dynamicLogicDefs]
+     * @property {Object.<string, *>} [attributes]
+     * @property {module:views/record/detail~button[]} [buttonList] Buttons.
+     * @property {module:views/record/detail~dropdownItem[]} [dropdownItemList] Dropdown items.
+     */
+
+    /**
+     * @param {module:views/record/detail~options | Object.<string, *>} options Options.
+     */
+    constructor(options) {
+        super(options);
+    }
+
     /** @inheritDoc */
     template = 'record/detail'
 
     /** @inheritDoc */
     type = 'detail'
-
-    /**
-     * Not used.
-     *
-     * @deprecated
-     * @protected
-     */
-    name = 'detail'
 
     /**
      * A layout name. Can be overridden by an option parameter.
@@ -62,8 +86,7 @@ class DetailRecordView extends BaseRecordView {
     /**
      * Panel definitions.
      *
-     * @typedef module:views/record/detail~panelDefs
-     * @type Object
+     * @typedef {Object} module:views/record/detail~panelDefs
      * @property {string} [label] A translatable label.
      * @property {string} [customLabel] A custom label.
      * @property {string} [name] A name. Useful to be able to show/hide by a name.
@@ -72,25 +95,24 @@ class DetailRecordView extends BaseRecordView {
      * @property {string} [tabLabel] A tab label. If starts with `$`, a translation
      *   of the `tabs` category is used.
      * @property {module:views/record/detail~rowDefs[]} [rows] Rows.
+     * @property {module:views/record/detail~rowDefs[]} [columns] Columns.
      */
 
     /**
      * A row.
      *
-     * @typedef module:views/record/detail~rowDefs
-     * @type Array<module:views/record/detail~cellDefs|false>
+     * @typedef {Array<module:views/record/detail~cellDefs|false>} module:views/record/detail~rowDefs
      */
 
     /**
      * Cell definitions.
      *
-     * @typedef module:views/record/detail~cellDefs
-     * @type Object
+     * @typedef {Object} module:views/record/detail~cellDefs
      * @property {string} [name] A name (usually a field name).
-     * @property {string} [view] An overridden field view name.
+     * @property {string|module:views/fields/base} [view] An overridden field view name or a view instance.
      * @property {string} [type] An overridden field type.
      * @property {boolean} [readOnly] Read-only.
-     * @property {boolean} [inlineEditDisabled ] Disable inline edit.
+     * @property {boolean} [inlineEditDisabled] Disable inline edit.
      * @property {Object.<string, *>} [params] Overridden field parameters.
      * @property {Object.<string, *>} [options] Field view options.
      * @property {string} [labelText] A label text (not-translatable).
@@ -171,7 +193,7 @@ class DetailRecordView extends BaseRecordView {
      * @property {string} [html] An HTML.
      * @property {string} [text] A text.
      * @property {boolean} [hidden] Hidden.
-     * @property {Object.<string,string>} [data] Data attributes.
+     * @property {Object.<string, string>} [data] Data attributes.
      * @property {string} [title] A title (not translatable).
      * @property {boolean} [disabled] Disabled.
      */
@@ -194,7 +216,7 @@ class DetailRecordView extends BaseRecordView {
      * A dropdown item list.
      *
      * @protected
-     * @type {module:views/record/detail~dropdownItem[]}
+     * @type {Array<module:views/record/detail~dropdownItem|false>}
      */
     dropdownItemList = [
         {
@@ -403,6 +425,7 @@ class DetailRecordView extends BaseRecordView {
      *
      * @protected
      * @type {Object}
+     * @todo Add typedef.
      */
     dynamicLogicDefs = {}
 
@@ -455,6 +478,26 @@ class DetailRecordView extends BaseRecordView {
 
     /** @private */
     blockUpdateWebSocketPeriod = 500
+
+    /**
+     * @internal
+     * @protected
+     */
+    stickButtonsFormBottomSelector
+
+    /**
+     * @protected
+     * @type {string}
+     */
+    dynamicHandlerClassName
+
+    /**
+     * Disable access control.
+     *
+     * @protected
+     * @type {boolean}
+     */
+    accessControlDisabled
 
     /**
      * A Ctrl+Enter shortcut action.
@@ -551,21 +594,24 @@ class DetailRecordView extends BaseRecordView {
         this.getRouter().dispatch(this.scope, 'edit', options);
     }
 
+    // noinspection JSUnusedGlobalSymbols
     actionDelete() {
         this.delete();
     }
 
+    // noinspection JSUnusedGlobalSymbols
     /**
      * A `save` action.
      *
      * @param {{options?: module:views/record/base~saveOptions}} [data] Data.
+     * @return Promise
      */
     actionSave(data) {
         data = data || {};
 
         let modeBeforeSave = this.mode;
 
-        this.save(data.options)
+        const promise = this.save(data.options)
             .catch(reason => {
                 if (modeBeforeSave === this.MODE_EDIT && reason === 'error') {
                     this.setEditMode();
@@ -578,6 +624,8 @@ class DetailRecordView extends BaseRecordView {
             this.focusOnFirstDiv();
             $(window).scrollTop(0);
         }
+
+        return promise;
     }
 
     actionCancelEdit() {
@@ -588,7 +636,7 @@ class DetailRecordView extends BaseRecordView {
     }
 
     focusOnFirstDiv() {
-        let element = this.$el.find('> div').get(0);
+        let element = /** @type {HTMLElement} */this.$el.find('> div').get(0);
 
         if (element) {
             element.focus({preventScroll: true});
@@ -605,6 +653,7 @@ class DetailRecordView extends BaseRecordView {
             .catch(() => {});
     }
 
+    // noinspection JSUnusedGlobalSymbols
     /**
      * A `self-assign` action.
      */
@@ -631,6 +680,7 @@ class DetailRecordView extends BaseRecordView {
             });
     }
 
+    // noinspection JSUnusedGlobalSymbols
     /**
      * A `convert-currency` action.
      */
@@ -771,7 +821,7 @@ class DetailRecordView extends BaseRecordView {
             this.type === this.TYPE_DETAIL &&
             this.getMetadata().get(['scopes', this.scope, 'hasPersonalData'])
         ) {
-            if (this.getAcl().get('dataPrivacyPermission') === 'yes') {
+            if (this.getAcl().getPermissionLevel('dataPrivacyPermission') === 'yes') {
                 this.dropdownItemList.push({
                     'label': 'View Personal Data',
                     'name': 'viewPersonalData'
@@ -817,6 +867,7 @@ class DetailRecordView extends BaseRecordView {
      * Disable action items.
      */
     disableActionItems() {
+        // noinspection JSDeprecatedSymbols
         this.disableButtons();
     }
 
@@ -824,6 +875,7 @@ class DetailRecordView extends BaseRecordView {
      * Enable action items.
      */
     enableActionItems() {
+        // noinspection JSDeprecatedSymbols
         this.enableButtons();
     }
 
@@ -947,6 +999,7 @@ class DetailRecordView extends BaseRecordView {
         }
     }
 
+    // noinspection JSUnusedGlobalSymbols
     /**
      * Disable a button or dropdown action item.
      *
@@ -999,6 +1052,7 @@ class DetailRecordView extends BaseRecordView {
         }
     }
 
+    // noinspection JSUnusedGlobalSymbols
     /**
      * Enable a button or dropdown action item.
      *
@@ -1357,9 +1411,9 @@ class DetailRecordView extends BaseRecordView {
         let isSmallScreen = $(window.document).width() < screenWidthXs;
 
         let getOffsetTop = (/** JQuery */$element) => {
-            let element = $element.get(0);
+            let element = /** @type {HTMLElement} */$element.get(0);
 
-            let value = -3;
+            let value = 0;
 
             while (element) {
                 value += !isNaN(element.offsetTop) ? element.offsetTop : 0;
@@ -1376,6 +1430,8 @@ class DetailRecordView extends BaseRecordView {
 
         let stickTop = getOffsetTop($container);
         let blockHeight = $container.outerHeight();
+
+        stickTop -= 5; // padding;
 
         let $block = $('<div>')
             .css('height', blockHeight + 'px')
@@ -1622,7 +1678,7 @@ class DetailRecordView extends BaseRecordView {
 
         if (this.hasView('middle')) {
             if ('getFieldViews' in this.getMiddleView()) {
-                _.extend(fields, Espo.Utils.clone(this.getMiddleView().getFieldViews(withHidden)));
+                _.extend(fields, Espo.Utils.clone(this.getMiddleView().getFieldViews()));
             }
         }
 
@@ -1651,7 +1707,7 @@ class DetailRecordView extends BaseRecordView {
         let view;
 
         if (this.hasView('middle')) {
-            view = (this.getMiddleView().getFieldViews(true) || {})[name];
+            view = (this.getMiddleView().getFieldViews() || {})[name];
         }
 
         if (!view && this.hasView('side')) {
@@ -1711,7 +1767,6 @@ class DetailRecordView extends BaseRecordView {
             dropdownItemListEmpty: this.isDropdownItemListEmpty(),
             dropdownEditItemListEmpty: this.isDropdownEditItemListEmpty(),
             buttonsDisabled: this.buttonsDisabled,
-            name: this.name,
             id: this.id,
             isWide: this.isWide,
             isSmall: this.type === 'editSmall' || this.type === 'detailSmall',
@@ -1724,7 +1779,7 @@ class DetailRecordView extends BaseRecordView {
     }
 
     init() {
-        this.entityType = this.model.name;
+        this.entityType = this.model.entityType || this.model.name || 'Common';
         this.scope = this.options.scope || this.entityType;
 
         this.layoutName = this.options.layoutName || this.layoutName;
@@ -1971,15 +2026,16 @@ class DetailRecordView extends BaseRecordView {
         });
 
         let dependencyDefs = Espo.Utils.clone(
-            this.getMetadata().get(['clientDefs', this.model.name, 'formDependency']) || {}
+            this.getMetadata().get(['clientDefs', this.entityType, 'formDependency']) || {}
         );
 
+        // noinspection JSDeprecatedSymbols
         this.dependencyDefs = _.extend(dependencyDefs, this.dependencyDefs);
 
-        this.initDependancy();
+        this.initDependency();
 
         let dynamicLogic = Espo.Utils.clone(
-            this.getMetadata().get(['clientDefs', this.model.name, 'dynamicLogic']) || {}
+            this.getMetadata().get(['clientDefs', this.entityType, 'dynamicLogic']) || {}
         );
 
         this.dynamicLogicDefs = _.extend(dynamicLogic, this.dynamicLogicDefs);
@@ -2094,9 +2150,9 @@ class DetailRecordView extends BaseRecordView {
             }, 10);
         };
 
-        this.on('set-field-required', (field) => process('required', field));
-        this.on('set-field-option-list', (field) => process('options', field));
-        this.on('reset-field-option-list', (field) => process('options', field));
+        this.on('set-field-required', field => process('required', field));
+        this.on('set-field-option-list', field => process('options', field));
+        this.on('reset-field-option-list', field => process('options', field));
     }
 
     /**
@@ -2178,7 +2234,7 @@ class DetailRecordView extends BaseRecordView {
                 let key = Espo.Utils.getKeyFromKeyEvent(e);
 
                 if (typeof this.shortcutKeys[key] === 'function') {
-                    this.shortcutKeys[key].call(this, e);
+                    this.shortcutKeys[key].call(this, e.originalEvent);
 
                     return;
                 }
@@ -2237,15 +2293,7 @@ class DetailRecordView extends BaseRecordView {
         }
 
         let id = model.id;
-        let scope = model.name || this.scope;
-
-        let url;
-
-        if (this.mode === this.MODE_EDIT) {
-            url = '#' + scope + '/edit/' + id;
-        } else {
-            url = '#' + scope + '/view/' + id;
-        }
+        let scope = this.entityType || this.scope;
 
         this.getRouter().navigate('#' + scope + '/view/' + id, {trigger: false});
 
@@ -2274,9 +2322,6 @@ class DetailRecordView extends BaseRecordView {
             if (this.indexOfRecord < 0) {
                 this.indexOfRecord = 0;
             }
-        }
-        else {
-            collection = this.model.collection;
         }
 
         if (!(this.indexOfRecord > 0)) {
@@ -2336,6 +2381,7 @@ class DetailRecordView extends BaseRecordView {
             });
     }
 
+    // noinspection JSUnusedGlobalSymbols
     actionViewPersonalData() {
         this.createView('viewPersonalData', 'views/personal-data/modals/personal-data', {
             model: this.model
@@ -2349,9 +2395,10 @@ class DetailRecordView extends BaseRecordView {
         });
     }
 
+    // noinspection JSUnusedGlobalSymbols
     actionViewFollowers(data) {
         let viewName = this.getMetadata().get(
-                ['clientDefs', this.model.name, 'relationshipPanels', 'followers', 'viewModalView']
+                ['clientDefs', this.entityType, 'relationshipPanels', 'followers', 'viewModalView']
             ) ||
             this.getMetadata().get(['clientDefs', 'User', 'modalViews', 'relatedList']) ||
             'views/modals/followers-list';
@@ -2367,7 +2414,7 @@ class DetailRecordView extends BaseRecordView {
             scope: 'User',
             title: this.translate('Followers'),
             filtersDisabled: true,
-            url: this.model.entityType + '/' + this.model.id + '/followers',
+            url: this.entityType + '/' + this.model.id + '/followers',
             createDisabled: true,
             selectDisabled: selectDisabled,
             rowActionsView: 'views/user/record/row-actions/relationship-followers',
@@ -2410,9 +2457,10 @@ class DetailRecordView extends BaseRecordView {
         });
     }
 
+    // noinspection JSUnusedGlobalSymbols
     actionPrintPdf() {
         this.createView('pdfTemplate', 'views/modals/select-template', {
-            entityType: this.model.name,
+            entityType: this.entityType,
         }, (view) => {
             view.render();
 
@@ -2421,8 +2469,8 @@ class DetailRecordView extends BaseRecordView {
 
                 window.open(
                     '?entryPoint=pdf&entityType=' +
-                    this.model.name+'&entityId=' +
-                    this.model.id+'&templateId=' + model.id, '_blank'
+                    this.entityType + '&entityId=' +
+                    this.model.id + '&templateId=' + model.id, '_blank'
                 );
             });
         });
@@ -2474,7 +2522,7 @@ class DetailRecordView extends BaseRecordView {
         this.enableActionItems();
     }
 
-    errorHandlerDuplicate(duplicates) {
+    errorHandlerDuplicate(duplicates, o, resolve) {
         Espo.Ui.notify(false);
 
         this.createView('duplicate', 'views/modals/duplicate', {
@@ -2491,11 +2539,14 @@ class DetailRecordView extends BaseRecordView {
                             'X-Skip-Duplicate-Check': 'true',
                         }
                     }
-                });
+                }).then(() => resolve());
             });
         });
+
+        return true;
     }
 
+    // noinspection JSUnusedGlobalSymbols
     errorHandlerModified(data, options) {
         Espo.Ui.notify(false);
 
@@ -2682,7 +2733,7 @@ class DetailRecordView extends BaseRecordView {
         }
     }
 
-    manageAccessDelete(second) {
+    manageAccessDelete() {
         if (this.isNew) {
             return;
         }
@@ -2702,7 +2753,7 @@ class DetailRecordView extends BaseRecordView {
         }
     }
 
-    manageAccessStream(second) {
+    manageAccessStream() {
         if (this.isNew) {
             return;
         }
@@ -2710,7 +2761,7 @@ class DetailRecordView extends BaseRecordView {
         if (
             ~['no', 'own'].indexOf(this.getAcl().getLevel('User', 'read'))
             &&
-            this.getAcl().get('portalPermission') === 'no'
+            this.getAcl().getPermissionLevel('portalPermission') === 'no'
         ) {
             this.hideActionItem('viewFollowers');
 
@@ -2738,9 +2789,13 @@ class DetailRecordView extends BaseRecordView {
         this.manageAccessStream();
     }
 
+    /**
+     * Add a button.
+     *
+     * @param {module:views/record/detail~button} o
+     * @param {boolean} [toBeginning]
+     */
     addButton(o, toBeginning) {
-        let method = toBeginning ? 'unshift' : 'push';
-
         let name = o.name;
 
         if (!name) {
@@ -2753,14 +2808,22 @@ class DetailRecordView extends BaseRecordView {
             }
         }
 
-        this.buttonList[method](o);
+        toBeginning ?
+            this.buttonList.unshift(o) :
+            this.buttonList.push(o);
     }
 
+    /**
+     * Add a dropdown item.
+     *
+     * @param {module:views/record/detail~dropdownItem|false} o
+     * @param {boolean} [toBeginning]
+     */
     addDropdownItem(o, toBeginning) {
-        let method = toBeginning ? 'unshift' : 'push';
-
         if (!o) {
-            this.dropdownItemList[method](false);
+            toBeginning ?
+                this.dropdownItemList.unshift(false) :
+                this.dropdownItemList.push(false);
 
             return;
         }
@@ -2777,12 +2840,18 @@ class DetailRecordView extends BaseRecordView {
             }
         }
 
-        this.dropdownItemList[method](o);
+        toBeginning ?
+            this.dropdownItemList.unshift(o) :
+            this.dropdownItemList.push(o);
     }
 
+    /**
+     * Add an 'edit' mode button.
+     *
+     * @param {module:views/record/detail~button} o
+     * @param {boolean} [toBeginning]
+     */
     addButtonEdit(o, toBeginning) {
-        let method = toBeginning ? 'unshift' : 'push';
-
         let name = o.name;
 
         if (!name) {
@@ -2795,7 +2864,9 @@ class DetailRecordView extends BaseRecordView {
             }
         }
 
-        this.buttonEditList[method](o);
+        toBeginning ?
+            this.buttonEditList.unshift(o) :
+            this.buttonEditList.push(o);
     }
 
     /**
@@ -2872,6 +2943,7 @@ class DetailRecordView extends BaseRecordView {
      * @param {string} name A name.
      */
     removeActionItem(name) {
+        // noinspection JSDeprecatedSymbols
         this.removeButton(name);
     }
 
@@ -2906,12 +2978,12 @@ class DetailRecordView extends BaseRecordView {
      * Convert a detail layout to an internal layout.
      *
      * @protected
-     * @param {Object[]} simplifiedLayout A detail layout.
+     * @param {module:views/record/detail~panelDefs[]} simplifiedLayout A detail layout.
      * @return {Object[]}
      */
     convertDetailLayout(simplifiedLayout) {
         let layout = [];
-        let el = this.options.el || '#' + (this.id);
+        let el = this.getSelector() || '#' + (this.id);
 
         this.panelFieldListMap = {};
 
@@ -2959,14 +3031,17 @@ class DetailRecordView extends BaseRecordView {
 
             this.middlePanelDefsList.push(this.middlePanelDefs[panel.name]);
 
+            // noinspection JSUnresolvedReference
             if (item.dynamicLogicVisible && this.dynamicLogic) {
                 this.dynamicLogic.addPanelVisibleCondition(panel.name, item.dynamicLogicVisible);
             }
 
-            if (simplifiedLayout[p].dynamicLogicStyled && this.dynamicLogic) {
+            // noinspection JSUnresolvedReference
+            if (item.dynamicLogicStyled && this.dynamicLogic) {
                 this.dynamicLogic.addPanelStyledCondition(panel.name, item.dynamicLogicStyled);
             }
 
+            // noinspection JSUnresolvedReference
             if (item.hidden && tabNumber === 0) {
                 panel.hidden = true;
 
@@ -2998,11 +3073,27 @@ class DetailRecordView extends BaseRecordView {
                         continue;
                     }
 
-                    if (!cellDefs.name) {
+                    let view = cellDefs.view;
+                    let name = cellDefs.name;
+
+                    if (!name && view && typeof view === 'object') {
+                        name = view.name;
+                    }
+
+                    if (!name) {
+                        console.warn(`No 'name' specified in detail layout cell.`);
+
                         continue;
                     }
 
-                    let name = cellDefs.name;
+                    let selector;
+
+                    if (view && typeof view === 'object') {
+                        view.model = this.model;
+                        view.mode = this.fieldsMode;
+
+                        selector = `.field[data-name="${name}"]`;
+                    }
 
                     if (panel.name) {
                         this.panelFieldListMap[panel.name].push(name);
@@ -3010,12 +3101,12 @@ class DetailRecordView extends BaseRecordView {
 
                     let type = cellDefs.type || this.model.getFieldType(name) || 'base';
 
-                    let viewName = cellDefs.view ||
+                    view = view ||
                         this.model.getFieldParam(name, 'view') ||
                         this.getFieldManager().getViewName(type);
 
                     let o = {
-                        el: el + ' .middle .field[data-name="' + name + '"]',
+                        fullSelector: el + ' .middle .field[data-name="' + name + '"]',
                         defs: {
                             name: name,
                             params: cellDefs.params || {},
@@ -3040,6 +3131,7 @@ class DetailRecordView extends BaseRecordView {
                         o.inlineEditDisabled = true;
                     }
 
+                    // noinspection JSUnresolvedReference
                     let fullWidth = cellDefs.fullWidth || false;
 
                     if (!fullWidth) {
@@ -3089,12 +3181,16 @@ class DetailRecordView extends BaseRecordView {
 
                     let cell = {
                         name: name + 'Field',
-                        view: viewName,
+                        view: view,
                         field: name,
-                        el: el + ' .middle .field[data-name="' + name + '"]',
+                        fullSelector: el + ' .middle .field[data-name="' + name + '"]',
                         fullWidth: fullWidth,
                         options: o,
                     };
+
+                    if (selector) {
+                        cell.selector = selector;
+                    }
 
                     if ('labelText' in cellDefs) {
                         o.labelText = cellDefs.labelText;
@@ -3107,6 +3203,16 @@ class DetailRecordView extends BaseRecordView {
 
                     if ('label' in cellDefs) {
                         cell.label = cellDefs.label;
+                    }
+
+                    if (
+                        view &&
+                        typeof view === 'object' &&
+                        !cell.customLabel &&
+                        !cell.label &&
+                        view.getLabelText()
+                    ) {
+                        cell.customLabel = view.getLabelText();
                     }
 
                     if ('customCode' in cellDefs) {
@@ -3155,7 +3261,7 @@ class DetailRecordView extends BaseRecordView {
             return;
         }
 
-        this.getHelper().layoutManager.get(this.model.name, this.layoutName, detailLayout => {
+        this.getHelper().layoutManager.get(this.entityType, this.layoutName, detailLayout => {
             if (typeof this.modifyDetailLayout === 'function') {
                 detailLayout = Espo.Utils.cloneDeep(detailLayout);
 
@@ -3179,12 +3285,12 @@ class DetailRecordView extends BaseRecordView {
      * @protected
      */
     createSideView() {
-        let el = this.options.el || '#' + (this.id);
+        let el = this.getSelector() || '#' + (this.id);
 
         this.createView('side', this.sideView, {
             model: this.model,
             scope: this.scope,
-            el: el + ' .side',
+            fullSelector: el + ' .side',
             type: this.type,
             readOnly: this.readOnly,
             inlineEditDisabled: this.inlineEditDisabled,
@@ -3200,7 +3306,7 @@ class DetailRecordView extends BaseRecordView {
      * @protected
      */
     createMiddleView(callback) {
-        let el = this.options.el || '#' + (this.id);
+        let el = this.getSelector() || '#' + (this.id);
 
         this.waitForView('middle');
 
@@ -3218,7 +3324,7 @@ class DetailRecordView extends BaseRecordView {
                 scope: this.scope,
                 type: this.type,
                 layoutDefs: layout,
-                el: el + ' .middle',
+                fullSelector: el + ' .middle',
                 layoutData: {
                     model: this.model,
                 },
@@ -3235,12 +3341,12 @@ class DetailRecordView extends BaseRecordView {
      * @protected
      */
     createBottomView() {
-        let el = this.options.el || '#' + (this.id);
+        let el = this.getSelector() || '#' + (this.id);
 
         this.createView('bottom', this.bottomView, {
             model: this.model,
             scope: this.scope,
-            el: el + ' .bottom',
+            fullSelector: el + ' .bottom',
             readOnly: this.readOnly,
             type: this.type,
             inlineEditDisabled: this.inlineEditDisabled,
@@ -3271,6 +3377,7 @@ class DetailRecordView extends BaseRecordView {
         }
     }
 
+    // noinspection JSUnusedGlobalSymbols
     /**
      * Called after create.
      *
@@ -3298,7 +3405,7 @@ class DetailRecordView extends BaseRecordView {
     /**
      * Called after save or cancel. By default, redirects a page. Can be overridden in options.
      *
-     * @param {string|'save'|'cancel'|'delete'} after Name of an action after which #exit is invoked.
+     * @param {string|'save'|'cancel'|'delete'} [after] Name of an action after which #exit is invoked.
      */
     exit(after) {
         if (after) {
@@ -3430,6 +3537,7 @@ class DetailRecordView extends BaseRecordView {
         });
     }
 
+    // noinspection JSUnusedGlobalSymbols
     /**
      * @protected
      * @return {Number}

@@ -284,7 +284,9 @@ define('views/admin/layouts/detail', ['views/admin/layouts/grid'], function (Dep
                 return;
             }
 
-            return !model.getFieldParam(name, 'disabled') && !model.getFieldParam(name, 'layoutDetailDisabled');
+            return !model.getFieldParam(name, 'disabled') &&
+                !model.getFieldParam(name, 'utility') &&
+                !model.getFieldParam(name, 'layoutDetailDisabled');
         },
 
         hasDefaultPanel: function () {
@@ -328,7 +330,7 @@ define('views/admin/layouts/detail', ['views/admin/layouts/grid'], function (Dep
                 });
             });
 
-            let incopatibleFieldList = [];
+            let incompatibleFieldList = [];
 
             let isIncompatible = false;
 
@@ -349,7 +351,7 @@ define('views/admin/layouts/detail', ['views/admin/layouts/grid'], function (Dep
                     if (~fieldList.indexOf(itemField)) {
                         isIncompatible = true;
 
-                        incopatibleFieldList = [field].concat(targetFieldList);
+                        incompatibleFieldList = [field].concat(targetFieldList);
                     }
                 });
             });
@@ -359,7 +361,7 @@ define('views/admin/layouts/detail', ['views/admin/layouts/grid'], function (Dep
                     this.translate('fieldsIncompatible', 'messages', 'LayoutManager')
                         .replace(
                             '{fields}',
-                            incopatibleFieldList
+                            incompatibleFieldList
                                 .map(field => this.translate(field, 'fields', this.scope))
                                 .join(', ')
                         )

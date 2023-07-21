@@ -57,9 +57,9 @@
  * @typedef {Object} module:search-manager~advancedFilter
  *
  * @property {string} type A type. E.g. `equals`.
- * @property {string} attribute An attribute.
+ * @property {string} [attribute] An attribute.
  * @property {*} [value] A value.
- * @property {Object.<string,*>} [data] Additional data for UI.
+ * @property {Object.<string, *>} [data] Additional data for UI.
  */
 
 /**
@@ -228,18 +228,25 @@ class SearchManager {
      * @private
      */
     getWherePart(name, defs) {
-        var attribute = name;
+        let attribute = name;
+
+        if (typeof defs !== 'object') {
+            console.error('Bad where clause');
+
+            return {};
+        }
 
         if ('where' in defs) {
             return defs.where;
         }
 
         let type = defs.type;
+        let value;
 
         if (type === 'or' || type === 'and') {
             let a = [];
 
-            var value = defs.value || {};
+            value = defs.value || {};
 
             for (let n in value) {
                 a.push(this.getWherePart(n, value[n]));
@@ -306,7 +313,7 @@ class SearchManager {
     /**
      * Set advanced filters.
      *
-     * @param {{string: module:search-manager~advancedFilter}} advanced Advanced filters.
+     * @param {Object.<string, module:search-manager~advancedFilter>} advanced Advanced filters.
      *   Pairs of field => advancedFilter.
      */
     setAdvanced(advanced) {

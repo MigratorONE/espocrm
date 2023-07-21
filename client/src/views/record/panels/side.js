@@ -74,7 +74,7 @@ class SidePanelView extends View {
 
     /**
      * @protected
-     * @type {module:views/record/panels-container~button[]}
+     * @type {Array<module:views/record/panels-container~action|false>}
      */
     buttonList = null
 
@@ -159,6 +159,7 @@ class SidePanelView extends View {
             }
 
             item = Espo.Utils.clone(item);
+
             item.viewKey = item.name + 'Field';
             item.label = item.label || item.name;
 
@@ -219,7 +220,7 @@ class SidePanelView extends View {
 
         let o = {
             model: this.model,
-            el: this.options.el + ' .field[data-name="' + field + '"]',
+            selector: '.field[data-name="' + field + '"]',
             defs: {
                 name: field,
                 params: params || {},

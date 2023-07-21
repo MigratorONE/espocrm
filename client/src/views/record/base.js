@@ -499,6 +499,7 @@ class BaseRecordView extends View {
 
     /**
      * @deprecated Use `getFieldViews`.
+     * @private
      * @return {Object<string, module:views/fields/base>}
      */
     getFields() {
@@ -596,9 +597,7 @@ class BaseRecordView extends View {
             this.setIsNotChanged();
         });
 
-        this.events = this.events || {};
-
-        this.entityType = this.model.entityType || this.model.name;
+        this.entityType = this.model.entityType || this.model.name || 'Common';
         this.scope = this.options.scope || this.entityType;
 
         this.fieldList = this.options.fieldList || this.fieldList || [];
@@ -651,7 +650,7 @@ class BaseRecordView extends View {
              this.attributes = this.model.getClonedAttributes();
         });
 
-        this.initDependancy();
+        this.initDependency();
         this.initDynamicLogic();
     }
 
@@ -666,6 +665,7 @@ class BaseRecordView extends View {
         this.attributes[attribute] = value;
     }
 
+    // noinspection JSUnusedGlobalSymbols
     /**
      * Check whether a current attribute value differs from initial.
      *
@@ -739,16 +739,11 @@ class BaseRecordView extends View {
     }
 
     /**
-     * @deprecated
+     * @protected
+     * @internal
      */
-    applyDependancy() {
-        this._handleDependencyAttributes();
-    }
-
-    /**
-     * @deprecated
-     */
-    initDependancy() {
+    initDependency() {
+        // noinspection JSDeprecatedSymbols
         Object.keys(this.dependencyDefs || {}).forEach((attr) => {
             this.listenTo(this.model, 'change:' + attr, () => {
                 this._handleDependencyAttribute(attr);
@@ -756,6 +751,15 @@ class BaseRecordView extends View {
         });
 
         this._handleDependencyAttributes();
+    }
+
+    /**
+     * @deprecated
+     * @private
+     * For bc.
+     */
+    initDependancy() {
+        this.initDependency();
     }
 
     /**
@@ -962,7 +966,7 @@ class BaseRecordView extends View {
      * Save.
      *
      * @param {module:views/record/base~saveOptions} [options] Options.
-     * @return {Promise<never,string>}
+     * @return {Promise}
      */
     save(options) {
         options = options || {};
@@ -1066,10 +1070,10 @@ class BaseRecordView extends View {
         this.trigger('before:save');
         model.trigger('before:save');
 
-        let onError = (xhr, reject) => {
-            this.handleSaveError(xhr, options);
-            this.afterSaveError();
+        let onError = (xhr, reject, resolve) => {
+            const promise = this.handleSaveError(xhr, options, resolve);
 
+            this.afterSaveError();
             this.setModelAttributes(beforeSaveAttributes);
 
             this.lastSaveCancelReason = 'error';
@@ -1077,7 +1081,13 @@ class BaseRecordView extends View {
             this.trigger('error:save');
             this.trigger('cancel:save', {reason: 'error'});
 
-            reject('error');
+            promise.then(skipReject => {
+                if (skipReject) {
+                    return;
+                }
+
+                reject('error');
+            })
         };
 
         return new Promise((resolve, reject) => {
@@ -1087,9 +1097,6 @@ class BaseRecordView extends View {
                     {
                         patch: !model.isNew(),
                         headers: headers,
-                        // Can't use a promise-catch, as it's called
-                        // after the default ajaxError callback.
-                        error: (m, xhr) => onError(xhr, reject),
                     },
                 )
                 .then(() => {
@@ -1105,6 +1112,9 @@ class BaseRecordView extends View {
                     model.trigger('after:save');
 
                     resolve();
+                })
+                .catch(xhr => {
+                    onError(xhr, reject, resolve);
                 });
         });
     }
@@ -1112,17 +1122,19 @@ class BaseRecordView extends View {
     /**
      * Handle a save error.
      *
-     * @param {JQueryXHR} xhr XHR.
+     * @param {module:ajax.Xhr} xhr XHR.
      * @param {module:views/record/base~saveOptions} [options] Options.
+     * @param {function} saveResolve Resolve save promise.
+     * @return {Promise<boolean>}
      */
-    handleSaveError(xhr, options) {
+    handleSaveError(xhr, options, saveResolve) {
         let handlerData = null;
 
         if (~[409, 500].indexOf(xhr.status)) {
             let statusReason = xhr.getResponseHeader('X-Status-Reason');
 
             if (!statusReason) {
-                return;
+                return Promise.resolve(false);
             }
 
             try {
@@ -1144,7 +1156,7 @@ class BaseRecordView extends View {
                     catch (e) {
                         console.error('Could not parse error response body.');
 
-                        return;
+                        return Promise.resolve(false);
                     }
 
                     handlerData.data = data;
@@ -1153,7 +1165,7 @@ class BaseRecordView extends View {
         }
 
         if (!handlerData || !handlerData.reason) {
-            return;
+            return Promise.resolve(false);
         }
 
         let reason = handlerData.reason;
@@ -1164,25 +1176,31 @@ class BaseRecordView extends View {
             this.getMetadata()
                 .get(['clientDefs', 'Global', 'saveErrorHandlers', reason]);
 
-        if (handlerName) {
-            Espo.loader.require(handlerName, Handler => {
-                let handler = new Handler(this);
+        return new Promise(resolve => {
+            if (handlerName) {
+                Espo.loader.require(handlerName, Handler => {
+                    let handler = new Handler(this);
 
-                handler.process(handlerData.data, options);
-            });
+                    handler.process(handlerData.data, options);
 
-            xhr.errorIsHandled = true;
+                    resolve(false);
+                });
 
-            return;
-        }
+                xhr.errorIsHandled = true;
 
-        let methodName = 'errorHandler' + Espo.Utils.upperCaseFirst(reason);
+                return;
+            }
 
-        if (methodName in this) {
-            xhr.errorIsHandled = true;
+            let methodName = 'errorHandler' + Espo.Utils.upperCaseFirst(reason);
 
-            this[methodName](handlerData.data, options);
-        }
+            if (methodName in this) {
+                xhr.errorIsHandled = true;
+
+                let skipReject = this[methodName](handlerData.data, options, saveResolve);
+
+                resolve(skipReject || false);
+            }
+        });
     }
 
     /**
@@ -1251,7 +1269,8 @@ class BaseRecordView extends View {
      * @private
      */
     _handleDependencyAttributes() {
-        Object.keys(this.dependencyDefs || {}).forEach((attr) => {
+        // noinspection JSDeprecatedSymbols
+        Object.keys(this.dependencyDefs || {}).forEach(attr => {
             this._handleDependencyAttribute(attr);
         });
     }
@@ -1260,6 +1279,7 @@ class BaseRecordView extends View {
      * @private
      */
     _handleDependencyAttribute(attr) {
+        // noinspection JSDeprecatedSymbols
         let data = this.dependencyDefs[attr];
         let value = this.model.get(attr);
 
@@ -1363,7 +1383,7 @@ class BaseRecordView extends View {
         let o = {
             model: this.model,
             mode: mode || 'edit',
-            el: this.options.el + ' .field[data-name="' + name + '"]',
+            selector: '.field[data-name="' + name + '"]',
             defs: {
                 name: name,
                 params: params || {},

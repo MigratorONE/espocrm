@@ -379,13 +379,13 @@ class DetailModalView extends ModalView {
         let viewName =
             this.detailViewName ||
             this.detailView ||
-            this.getMetadata().get(['clientDefs', model.name, 'recordViews', 'detailSmall']) ||
-            this.getMetadata().get(['clientDefs', model.name, 'recordViews', 'detailQuick']) ||
+            this.getMetadata().get(['clientDefs', model.entityType, 'recordViews', 'detailSmall']) ||
+            this.getMetadata().get(['clientDefs', model.entityType, 'recordViews', 'detailQuick']) ||
             'views/record/detail-small';
 
         let options = {
             model: model,
-            el: this.containerSelector + ' .record-container',
+            fullSelector: this.containerSelector + ' .record-container',
             type: 'detailSmall',
             layoutName: this.layoutName || 'detailSmall',
             buttonsDisabled: true,
@@ -475,7 +475,7 @@ class DetailModalView extends ModalView {
         this.indexOfRecord = indexOfRecord;
 
         this.id = this.sourceModel.id;
-        this.scope = this.sourceModel.name;
+        this.scope = this.sourceModel.entityType;
 
         this.model = this.sourceModel.clone();
         this.model.collection = this.sourceModel.collection.clone();

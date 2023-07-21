@@ -29,6 +29,7 @@
 /** @module controllers/base */
 
 import Controller from 'controller';
+import BaseView from 'views/base';
 
 /**
  * A base controller.
@@ -126,14 +127,17 @@ class BaseController extends Controller {
         });
     }
 
+    // noinspection JSUnusedGlobalSymbols
     actionLogin() {
         this.login();
     }
 
+    // noinspection JSUnusedGlobalSymbols
     actionLogout() {
         this.logout();
     }
 
+    // noinspection JSUnusedGlobalSymbols
     actionLogoutWait() {
         this.entire('views/base', {template: 'logout-wait'}, view => {
             view.render()
@@ -141,6 +145,7 @@ class BaseController extends Controller {
         });
     }
 
+    // noinspection JSUnusedGlobalSymbols
     actionClearCache() {
         this.clearCache();
     }
@@ -149,18 +154,18 @@ class BaseController extends Controller {
      * Error Not Found.
      */
     error404() {
-        this.entire('views/base', {template: 'errors/404'}, view => {
-            view.render();
-        });
+        const view = new BaseView({template: 'errors/404'});
+
+        this.entire(view);
     }
 
     /**
      * Error Forbidden.
      */
     error403() {
-        this.entire('views/base', {template: 'errors/403'}, view => {
-            view.render();
-        });
+        const view = new BaseView({template: 'errors/403'});
+
+        this.entire(view);
     }
 }
 

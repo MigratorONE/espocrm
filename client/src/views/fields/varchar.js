@@ -36,6 +36,36 @@ import RegExpPattern from 'helpers/reg-exp-pattern';
  */
 class VarcharFieldView extends BaseFieldView {
 
+    /**
+     * @typedef {Object} module:views/fields/varchar~options
+     * @property {
+     *     module:views/fields/varchar~params &
+     *     module:views/fields/base~params &
+     *     Object.<string, *>
+     * } [params] Parameters.
+     */
+
+    /**
+     * @typedef {Object} module:views/fields/varchar~params
+     * @property {number} [maxLength] A max length.
+     * @property {string[]} [options] Select options.
+     * @property {boolean} [required] Required.
+     * @property {string} [optionsPath] An options metadata path.
+     * @property {boolean} [noSpellCheck] Disable spell check.
+     * @property {string} [pattern] A validation pattern. If starts with `$`, then a predefined pattern is used.
+     * @property {boolean} [copyToClipboard] To display a Copy-to-clipboard button.
+     */
+
+    /**
+     * @param {
+     *     module:views/fields/varchar~options &
+     *     module:views/fields/base~options
+     * } options Options.
+     */
+    constructor(options) {
+        super(options);
+    }
+
     type = 'varchar'
 
     listTemplate = 'fields/varchar/list'
@@ -148,6 +178,7 @@ class VarcharFieldView extends BaseFieldView {
         });
     }
 
+    // noinspection JSUnusedLocalSymbols
     /**
      * Compose an autocomplete URL.
      *
@@ -237,6 +268,7 @@ class VarcharFieldView extends BaseFieldView {
                 this.useAutocompleteUrl
             )
         ) {
+            // noinspection JSUnusedGlobalSymbols
             let autocompleteOptions = {
                 minChars: 0,
                 lookup: this.params.options,
@@ -297,6 +329,7 @@ class VarcharFieldView extends BaseFieldView {
         }
     }
 
+    // noinspection JSUnusedGlobalSymbols
     validatePattern() {
         let pattern = this.params.pattern;
 
@@ -326,11 +359,14 @@ class VarcharFieldView extends BaseFieldView {
             return false;
         }
 
-        this.showValidationMessage(result.message, '[data-name="' + name + '"]');
+        let message = result.message.replace('{field}', this.getLanguage().translate(this.getLabelText()));
+
+        this.showValidationMessage(message, '[data-name="' + name + '"]');
 
         return true;
     }
 
+    /** @inheritDoc */
     fetch() {
         let data = {};
 
@@ -341,6 +377,7 @@ class VarcharFieldView extends BaseFieldView {
         return data;
     }
 
+    /** @inheritDoc */
     fetchSearch() {
         let type = this.fetchSearchType() || 'startsWith';
 
@@ -365,20 +402,25 @@ class VarcharFieldView extends BaseFieldView {
                 };
             }
 
+            let value = [
+                {
+                    type: 'isNotNull',
+                    field: this.name,
+                    value: null,
+                },
+            ];
+
+            if (!this.model.getFieldParam(this.name, 'notStorable')) {
+                value.push({
+                    type: 'notEquals',
+                    field: this.name,
+                    value: '',
+                });
+            }
+
             return {
                 type: 'and',
-                value: [
-                    {
-                        type: 'notEquals',
-                        field: this.name,
-                        value: '',
-                    },
-                    {
-                        type: 'isNotNull',
-                        field: this.name,
-                        value: null,
-                    }
-                ],
+                value: value,
                 data: {
                     type: type,
                 },
@@ -388,8 +430,7 @@ class VarcharFieldView extends BaseFieldView {
         let value = this.$element.val().toString().trim();
 
         if (!value) {
-            // @todo Change to `null` in v7.7 (and for all other fields).
-            return false;
+            return null;
         }
 
         return {

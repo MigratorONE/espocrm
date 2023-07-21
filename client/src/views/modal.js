@@ -33,17 +33,6 @@ import View from 'view';
 /**
  * A base modal view. Can be extended or used directly.
  *
- * @todo Define JSDocs options for constructor.
- *
- * Options:
- * - `headerElement`
- * - `headerHtml`
- * - `headerText`
- * - `$header`
- * - `backdrop`
- * - `buttonList`
- * - `dropdownItemList`
- *
  * @see {@link https://docs.espocrm.com/development/modal/}
  */
 class ModalView extends View {
@@ -64,10 +53,28 @@ class ModalView extends View {
      * @property {'default'|'danger'|'success'|'warning'} [style='default'] A style.
      * @property {boolean} [hidden=false] Is hidden.
      * @property {boolean} [disabled=false] Disabled.
-     * @property {function():void} [onClick] Called on click. If not defined, then
+     * @property {function(module:ui.Dialog): void} [onClick] Called on click. If not defined, then
      * the `action<Name>` class method will be called.
      * @property {string} [className] An additional class name.
+     * @property {string} [title] A title text.
+     * @property {'primary'|'danger'|'success'|'warning'|'text'} [style] A style.
      */
+
+    /**
+     * @typedef {Object} module:views/modal~Options
+     * @property {string} [headerText] A header text.
+     * @property {HTMLElement} [headerElement] A header element.
+     * @property {'static'|boolean} [backdrop] A backdrop.
+     * @property {module:views/modal~Button} [buttonList] Buttons.
+     * @property {module:views/modal~Button} [dropdownItemList] Buttons.
+     */
+
+    /**
+     * @param {module:views/modal~Options | Option.<string, *>} [options] Options.
+     */
+    constructor(options) {
+        super(options);
+    }
 
     /**
      * A CSS name.
@@ -87,7 +94,7 @@ class ModalView extends View {
      * @protected
      * @deprecated Use `headerHtml`
      */
-    header = false
+    header
 
     /**
      * A header HTML. Beware of XSS.
@@ -95,7 +102,7 @@ class ModalView extends View {
      * @protected
      * @type {string|null}
      */
-    headerHtml = null
+    headerHtml
 
     /**
      * A header JQuery instance.
@@ -103,7 +110,7 @@ class ModalView extends View {
      * @protected
      * @type {JQuery}
      */
-    $header = null
+    $header
 
     /**
      * A header element.
@@ -111,23 +118,23 @@ class ModalView extends View {
      * @protected
      * @type {Element}
      */
-    headerElement = null
+    headerElement
 
     /**
      * A header text.
      *
      * @protected
-     * @type {string|null}
+     * @type {string}
      */
-    headerText = null
+    headerText
 
     /**
      * A dialog instance.
      *
      * @protected
-     * @type {Espo.Ui.Dialog|null}
+     * @type {Espo.Ui.Dialog}
      */
-    dialog = null
+    dialog
 
     /**
      * A container selector.
@@ -164,7 +171,7 @@ class ModalView extends View {
      * Dropdown action items.
      *
      * @protected
-     * @type {module:views/modal~Button[]|false}
+     * @type {Array<module:views/modal~Button|false>}
      */
     dropdownItemList = []
 
@@ -262,8 +269,9 @@ class ModalView extends View {
      * @inheritDoc
      */
     init() {
-        var id = this.cssName + '-container-' + Math.floor((Math.random() * 10000) + 1).toString();
-        var containerSelector = this.containerSelector = '#' + id;
+        const id = this.cssName + '-container-' + Math.floor((Math.random() * 10000) + 1).toString();
+
+        this.containerSelector = '#' + id;
 
         this.header = this.options.header || this.header;
         this.headerHtml = this.options.headerHtml || this.headerHtml;
@@ -281,7 +289,7 @@ class ModalView extends View {
         this.buttonList = Espo.Utils.cloneDeep(this.buttonList);
         this.dropdownItemList = Espo.Utils.cloneDeep(this.dropdownItemList);
 
-        // @todo Remove in v8.0.
+        // @todo Remove in v9.0.
         this.buttons = Espo.Utils.cloneDeep(this.buttons);
 
         if (this.shortcutKeys) {
@@ -295,14 +303,14 @@ class ModalView extends View {
 
             this.isCollapsed = false;
 
-            $(containerSelector).remove();
+            $(this.containerSelector).remove();
 
             $('<div />').css('display', 'none')
                 .attr('id', id)
                 .addClass('modal-container')
                 .appendTo('body');
 
-            var modalBodyDiffHeight = 92;
+            let modalBodyDiffHeight = 92;
 
             if (this.getThemeManager().getParam('modalBodyDiffHeight') !== null) {
                 modalBodyDiffHeight = this.getThemeManager().getParam('modalBodyDiffHeight');
@@ -328,7 +336,7 @@ class ModalView extends View {
             this.dialog = new Espo.Ui.Dialog({
                 backdrop: this.backdrop,
                 header: headerHtml,
-                container: containerSelector,
+                container: this.containerSelector,
                 body: '',
                 buttonList: this.getDialogButtonList(),
                 dropdownItemList: this.getDialogDropdownItemList(),
@@ -348,11 +356,11 @@ class ModalView extends View {
                 onBackdropClick: () => this.onBackdropClick(),
             });
 
-            this.setElement(containerSelector + ' .body');
+            this.setElement(this.containerSelector + ' .body');
         });
 
         this.on('after:render', () => {
-            $(containerSelector).show();
+            $(this.containerSelector).show();
 
             this.dialog.show();
 
@@ -372,7 +380,7 @@ class ModalView extends View {
                 this.dialog.close();
             }
 
-            $(containerSelector).remove();
+            $(this.containerSelector).remove();
         });
     }
 
@@ -382,7 +390,7 @@ class ModalView extends View {
                 let key = Espo.Utils.getKeyFromKeyEvent(e);
 
                 if (typeof this.shortcutKeys[key] === 'function') {
-                    this.shortcutKeys[key].call(this, e);
+                    this.shortcutKeys[key].call(this, e.originalEvent);
 
                     return;
                 }
@@ -418,7 +426,7 @@ class ModalView extends View {
 
         // @todo remove it as deprecated.
         this.buttons.forEach(item => {
-            var o = Espo.Utils.clone(item);
+            let o = Espo.Utils.clone(item);
 
             if (!('text' in o) && ('label' in o)) {
                 o.text = this.getLanguage().translate(o.label);
@@ -472,7 +480,7 @@ class ModalView extends View {
         let dropdownItemListExt = [];
 
         this.dropdownItemList.forEach(item => {
-            var o = {};
+            let o = {};
 
             if (typeof item === 'string') {
                 o.name = /** @type string */item;
@@ -609,7 +617,7 @@ class ModalView extends View {
      * @param {boolean} [doNotReRender=false] Do not re-render.
      */
     addButton(o, position, doNotReRender) {
-        var index = -1;
+        let index = -1;
 
         this.buttonList.forEach((item, i) => {
             if (item.name === o.name) {
@@ -759,7 +767,7 @@ class ModalView extends View {
             return;
         }
 
-        this.$el.find('footer button[data-name="'+name+'"]').removeClass('hidden');
+        this.$el.find('footer button[data-name="' + name + '"]').removeClass('hidden');
 
         this.adjustButtons();
     }
@@ -907,7 +915,7 @@ class ModalView extends View {
             return true;
         }
 
-        var isEmpty = true;
+        let isEmpty = true;
 
         this.dropdownItemList.forEach((item) => {
             if (!item.hidden) {
@@ -929,10 +937,10 @@ class ModalView extends View {
             this.fontSizePercentage = 100;
         }
 
-        var $titleText = this.$el.find('.modal-title > .modal-title-text');
+        let $titleText = this.$el.find('.modal-title > .modal-title-text');
 
-        var containerWidth = $titleText.parent().width();
-        var textWidth = 0;
+        let containerWidth = $titleText.parent().width();
+        let textWidth = 0;
 
         $titleText.children().each((i, el) => {
             textWidth += $(el).outerWidth(true);
@@ -940,7 +948,7 @@ class ModalView extends View {
 
         if (containerWidth < textWidth) {
             if (step > 5) {
-                var $title = this.$el.find('.modal-title');
+                let $title = this.$el.find('.modal-title');
 
                 $title.attr('title', $titleText.text());
                 $title.addClass('overlapped');
@@ -1010,7 +1018,7 @@ class ModalView extends View {
 
                 masterView
                     .createView('collapsedModalBar', 'views/collapsed-modal-bar', {
-                        el: 'body > .collapsed-modal-bar',
+                        fullSelector: 'body > .collapsed-modal-bar',
                     })
                     .then(view => resolve(view));
             }))

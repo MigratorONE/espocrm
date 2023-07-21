@@ -26,7 +26,7 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-/** @module views/fields/enum */
+/** @module views/fields/enumeration */
 
 import BaseFieldView from 'views/fields/base';
 import MultiSelect from 'ui/multi-select';
@@ -36,6 +36,38 @@ import Select from 'ui/select'
  * An enum field (select-box).
  */
 class EnumFieldView extends BaseFieldView {
+
+    /**
+     * @typedef {Object} module:views/fields/enumeration~options
+     * @property {
+     *     module:views/fields/enumeration~params &
+     *     module:views/fields/base~params &
+     *     Object.<string, *>
+     * } [params] Parameters.
+     */
+
+    /**
+     * @typedef {Object} module:views/fields/enumeration~params
+     * @property {string[]} [options] Select options.
+     * @property {boolean} [required] Required.
+     * @property {string} [translation] A translation string. E.g. `Global.scopeNames`.
+     * @property {boolean} [displayAsLabel] Display as label.
+     * @property {string} [optionsReference] A reference to options. E.g. `Account.industry`.
+     * @property {string} [optionsPath] An options metadata path.
+     * @property {boolean} [isSorted] To sort options.
+     * @property {Object.<string, 'warning'|'danger'|'success'|'info'|'primary'>} [style] A style map.
+     * @property {Object.<string, string>} [translatedOptions] Option translations.
+     */
+
+    /**
+     * @param {
+     *     module:views/fields/enumeration~options &
+     *     module:views/fields/base~options
+     * } options Options.
+     */
+    constructor(options) {
+        super(options);
+    }
 
     type = 'enum'
 
@@ -445,13 +477,14 @@ class EnumFieldView extends BaseFieldView {
             return {
                 type: 'or',
                 value: [
-                    {
-                        type: 'isNull',
-                        attribute: this.name,
-                    },
+                    // Don't change order.
                     {
                         type: 'notIn',
                         value: list,
+                        attribute: this.name,
+                    },
+                    {
+                        type: 'isNull',
                         attribute: this.name,
                     },
                 ],
@@ -483,24 +516,31 @@ class EnumFieldView extends BaseFieldView {
         }
 
         if (type === 'isNotEmpty') {
+            let value = [
+                {
+                    type: 'isNotNull',
+                    attribute: this.name,
+                },
+            ];
+
+            if (!this.model.getFieldParam(this.name, 'notStorable')) {
+                value.push({
+                    type: 'notEquals',
+                    value: '',
+                    attribute: this.name,
+                });
+            }
+
             return {
                 type: 'and',
-                value: [
-                    {
-                        type: 'isNotNull',
-                        attribute: this.name,
-                    },
-                    {
-                        type: 'notEquals',
-                        value: '',
-                        attribute: this.name,
-                    },
-                ],
+                value: value,
                 data: {
                     type: 'isNotEmpty',
                 },
             };
         }
+
+        return null;
     }
 
     getSearchType() {

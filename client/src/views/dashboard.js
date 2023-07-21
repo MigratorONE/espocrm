@@ -26,6 +26,8 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
+/** @module views/dashboard */
+
 import View from 'view';
 import GridStack from 'gridstack';
 
@@ -601,7 +603,7 @@ class DashboardView extends View {
             label: name,
             name: name,
             id: id,
-            el: this.options.el + ' > .dashlets .dashlet-container[data-id="' + id + '"]',
+            selector: '> .dashlets .dashlet-container[data-id="' + id + '"]',
             readOnly: this.dashletsReadOnly,
             locked: this.getPreferences().get('dashboardLocked'),
         }, view => {

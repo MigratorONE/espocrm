@@ -304,17 +304,15 @@ define('views/admin/layouts/grid', ['views/admin/layouts/base'], function (Dep) 
             return panelDataList;
         },
 
-        cancel: function () {
-            this.loadLayout(() => {
+        prepareLayout: function () {
+            return new Promise(resolve => {
                 let countLoaded = 0;
-
-                this.setIsNotChanged();
 
                 this.setupPanels(() => {
                     countLoaded ++;
 
                     if (countLoaded === this.panels.length) {
-                        this.reRender();
+                        resolve();
                     }
                 });
             });
@@ -368,7 +366,7 @@ define('views/admin/layouts/grid', ['views/admin/layouts/base'], function (Dep) 
             });
 
             this.createView('panel-' + data.number, 'view', {
-                el: this.getSelector() + ' li.panel-layout[data-number="'+data.number+'"]',
+                selector: 'li.panel-layout[data-number="'+data.number+'"]',
                 template: 'admin/layouts/grid-panel',
                 data: () => {
                     var o = Espo.Utils.clone(data);
@@ -461,7 +459,9 @@ define('views/admin/layouts/grid', ['views/admin/layouts/base'], function (Dep) 
         afterRender: function () {
             this.makeDraggable();
 
-            this.$el.find('.enabled-well').focus();
+            let wellElement = /** @type {HTMLElement} */this.$el.find('.enabled-well').get(0)
+
+            wellElement.focus({preventScroll: true});
         },
 
         fetch: function () {

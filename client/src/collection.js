@@ -140,7 +140,6 @@ class Collection {
      */
     whereFunction
 
-
     /**
      * A last sync request promise.
      *
@@ -726,6 +725,14 @@ class Collection {
         this.dataAdditional = response.additionalData || null;
 
         return response.list;
+    }
+
+    /**
+     * @deprecated As of v8.0. Use `prepareAttributes`.
+     * @todo Remove in v9.0.
+     */
+    parse(response, options) {
+        return this.prepareAttributes(response, options);
     }
 
     /**

@@ -86,9 +86,18 @@ class DetailView extends MainView {
     /** @inheritDoc */
     shortcutKeys = {}
 
+    /**
+     * An entity type.
+     *
+     * @type {string}
+     */
+    entityType
+
     /** @inheritDoc */
     setup() {
         super.setup();
+
+        this.entityType = this.model.entityType || this.model.name;
 
         this.headerView = this.options.headerView || this.headerView;
         this.recordView = this.options.recordView || this.recordView;
@@ -159,7 +168,7 @@ class DetailView extends MainView {
     setupHeader() {
         this.createView('header', this.headerView, {
             model: this.model,
-            el: '#main > .header',
+            fullSelector: '#main > .header',
             scope: this.scope,
             fontSizeFlexible: true,
         });
@@ -179,7 +188,7 @@ class DetailView extends MainView {
     setupRecord() {
         let o = {
             model: this.model,
-            el: '#main > .record',
+            fullSelector: '#main > .record',
             scope: this.scope,
             shortcutKeysEnabled: true,
             isReturn: this.isReturn,
@@ -274,7 +283,7 @@ class DetailView extends MainView {
         this.disableMenuItem('follow');
 
         Espo.Ajax
-            .putRequest(this.model.name + '/' + this.model.id + '/subscription')
+            .putRequest(this.entityType + '/' + this.model.id + '/subscription')
             .then(() => {
                 this.hideHeaderActionItem('follow');
 
@@ -295,7 +304,7 @@ class DetailView extends MainView {
         this.disableMenuItem('unfollow');
 
         Espo.Ajax
-            .deleteRequest(this.model.name + '/' + this.model.id + '/subscription')
+            .deleteRequest(this.entityType + '/' + this.model.id + '/subscription')
             .then(() => {
                 this.hideHeaderActionItem('unfollow');
 

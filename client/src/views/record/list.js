@@ -797,6 +797,13 @@ class ListRecordView extends View {
         let middleTop = getOffsetTop($middle.get(0));
         let buttonsTop =  getOffsetTop(this.$el.find('.list-buttons-container').get(0));
 
+        if (!isModal) {
+            // padding
+            middleTop -= 5;
+            buttonsTop -= 5;
+        }
+
+
         $scrollable.off('scroll.list-' + this.cid);
         $scrollable.on('scroll.list-' + this.cid, () => controlSticking());
 
@@ -2667,8 +2674,9 @@ class ListRecordView extends View {
      * @return {string}
      */
     getItemEl(model, item) {
-        return this.options.el + ' tr[data-id="' + model.id + '"] ' +
-            'td.cell[data-name="' + item.columnName + '"]';
+        return this.getSelector() +
+            ' tr[data-id="' + model.id + '"]' +
+            ' td.cell[data-name="' + item.columnName + '"]';
     }
 
     prepareInternalLayout(internalLayout, model) {
@@ -2702,14 +2710,12 @@ class ListRecordView extends View {
             this.createView(key, 'views/base', {
                 model: model,
                 acl: acl,
-                el: this.options.el + ' .list-row[data-id="'+key+'"]',
+                selector: '.list-row[data-id="' + key + '"]',
                 optionsToPass: ['acl'],
-                noCache: true,
                 layoutDefs: {
                     type: this._internalLayoutType,
                     layout: internalLayout
                 },
-                name: this.type + '-' + model.name,
                 setViewBeforeCallback: this.options.skipBuildRows && !this.isRendered(),
             }, callback);
         }, model);
@@ -2879,8 +2885,8 @@ class ListRecordView extends View {
 
                         view._afterRender();
 
-                        if (view.options.el) {
-                            view.setElement(view.options.el);
+                        if (view.getSelector()) {
+                            view.setElement(view.getSelector());
                         }
                     });
                 });
@@ -2940,7 +2946,7 @@ class ListRecordView extends View {
         let scope = data.scope;
 
         if (!scope && model) {
-            scope = model.name;
+            scope = model.entityType;
         }
 
         if (!scope) {
@@ -3001,7 +3007,7 @@ class ListRecordView extends View {
         let scope = data.scope;
 
         if (!scope && model) {
-            scope = model.name;
+            scope = model.entityType;
         }
 
         if (!scope) {

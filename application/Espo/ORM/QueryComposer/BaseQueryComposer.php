@@ -306,7 +306,7 @@ abstract class BaseQueryComposer implements QueryComposer
 
     /**
      * @deprecated As of v6.0. Use `composeSelect`.
-     * @todo Remove in v8.0.
+     * @todo Remove in v9.0.
      * @param array<string, mixed>|null $params
      */
     public function createSelectQuery(string $entityType, ?array $params = null): string
@@ -2210,7 +2210,7 @@ abstract class BaseQueryComposer implements QueryComposer
      * Quote a value (if needed).
      * @deprecated As of v6.0. Not meant to be used outside as Query Builder should be used to
      * build queries.
-     * @todo Make protected in 8.0.
+     * @todo Make protected in v9.0.
      * @param mixed $value
      */
     public function quote($value): string
@@ -2476,12 +2476,15 @@ abstract class BaseQueryComposer implements QueryComposer
         }
 
         if ($field === self::EXISTS_OPERATOR) {
-            if (!$value instanceof Select) {
-                throw new RuntimeException("Bad EXISTS usage in where-clause.");
-
+            if ($value instanceof Select) {
+                $subQueryPart = $this->composeSelect($value);
             }
-
-            $subQueryPart = $this->composeSelect($value);
+            else if (is_array($value)) {
+                $subQueryPart = $this->createSelectQueryInternal($value);
+            }
+            else {
+                throw new RuntimeException("Bad EXISTS usage in where-clause.");
+            }
 
             return "EXISTS ($subQueryPart)";
         }
@@ -2882,7 +2885,7 @@ abstract class BaseQueryComposer implements QueryComposer
 
     /**
      * Sanitize a string.
-     * @todo Make protected in 8.0.
+     * @todo Make protected in 9.0.
      * @deprecated As of v6.0. Not to be used outside.
      */
     public function sanitize(string $string): string
@@ -2892,7 +2895,7 @@ abstract class BaseQueryComposer implements QueryComposer
 
     /**
      * Sanitize an alias for a SELECT statement.
-     * @todo Make protected in 8.0.
+     * @todo Make protected in 9.0.
      * @deprecated As of v6.0. Not to be used outside.
      */
     public function sanitizeSelectAlias(string $string): string

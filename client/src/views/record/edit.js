@@ -41,8 +41,6 @@ class EditRecordView extends DetailRecordView {
     /** @inheritDoc */
     type = 'edit'
     /** @inheritDoc */
-    name = 'edit'
-    /** @inheritDoc */
     fieldsMode = 'edit'
     /** @inheritDoc */
     mode = 'edit'
@@ -75,13 +73,26 @@ class EditRecordView extends DetailRecordView {
     /** @inheritDoc */
     setupHandlerType = 'record/edit'
 
+    /**
+     * @param {
+     *     module:views/record/detail~options |
+     *     {
+     *         duplicateSourceId?: string,
+     *         focusForCreate?: boolean,
+     *     }
+     * } options Options.
+     */
+    constructor(options) {
+        super(options);
+    }
+
     /** @inheritDoc */
     actionSave(data) {
         data = data || {};
 
         let isNew = this.isNew;
 
-        this.save(data.options)
+        return this.save(data.options)
             .then(() => {
                 if (this.options.duplicateSourceId) {
                     this.returnUrl = null;

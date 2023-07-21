@@ -118,7 +118,7 @@ class ListTreeRecordItemView extends View {
         }
 
         this.rootView = this.options.rootView;
-        this.scope = this.model.name;
+        this.scope = this.model.entityType;
 
         this.isUnfolded = false;
 
@@ -170,7 +170,7 @@ class ListTreeRecordItemView extends View {
 
         this.createView('children', this.listViewName, {
             collection: childCollection,
-            el: this.options.el + ' > .children',
+            selector: '> .children',
             createDisabled: this.options.createDisabled,
             readOnly: this.options.readOnly,
             level: this.level + 1,

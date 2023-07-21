@@ -32,6 +32,7 @@ class CollapsedModalBar extends View {
 
     maxNumberToDisplay = 3
 
+    // language=Handlebars
     templateContent = `
         {{#each dataList}}
         <div class="collapsed-modal" data-number="{{number}}">{{var key ../this}}</div>
@@ -119,7 +120,7 @@ class CollapsedModalBar extends View {
         this.createView(key, 'views/collapsed-modal', {
             title: options.title,
             duplicateNumber: this.calculateDuplicateNumber(options.title),
-            el: this.getSelector() + ' [data-number="' + number + '"]',
+            selector: '[data-number="' + number + '"]',
         })
         .then(view => {
             this.listenToOnce(view, 'close', () => {

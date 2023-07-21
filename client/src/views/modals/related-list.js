@@ -242,7 +242,7 @@ class RelatedListModalView extends ModalView {
         this.$header.append(
             title ||
             $('<span>').text(
-                this.getLanguage().translate(this.link, 'links', this.model.name)
+                this.getLanguage().translate(this.link, 'links', this.entityType)
             )
         );
 
@@ -372,7 +372,7 @@ class RelatedListModalView extends ModalView {
         if (this.searchPanel) {
             this.createView('search', 'views/record/search', {
                 collection: this.collection,
-                el: this.containerSelector + ' .search-container',
+                fullSelector: this.containerSelector + ' .search-container',
                 searchManager: searchManager,
                 disableSavePreset: true,
                 filterList: filterList,
@@ -391,7 +391,7 @@ class RelatedListModalView extends ModalView {
 
         this.createView('list', viewName, {
             collection: this.collection,
-            el: this.containerSelector + ' .list-container',
+            fullSelector: this.containerSelector + ' .list-container',
             rowActionsView: this.rowActionsView,
             layoutName: this.layoutName,
             searchManager: this.searchManager,
@@ -466,6 +466,7 @@ class RelatedListModalView extends ModalView {
         });
     }
 
+    // noinspection JSUnusedGlobalSymbols
     actionUnlinkRelated(data) {
         let id = data.id;
 
@@ -487,6 +488,7 @@ class RelatedListModalView extends ModalView {
     }
 
     actionCreateRelated() {
+        // noinspection JSUnresolvedReference
         let actionName = this.defs.createAction || 'createRelated';
         let methodName = 'action' + Espo.Utils.upperCaseFirst(actionName);
 
@@ -511,6 +513,7 @@ class RelatedListModalView extends ModalView {
     }
 
     actionSelectRelated() {
+        // noinspection JSUnresolvedReference
         let actionName = this.defs.selectAction || 'selectRelated';
         let methodName = 'action' + Espo.Utils.upperCaseFirst(actionName);
 
@@ -536,6 +539,7 @@ class RelatedListModalView extends ModalView {
         });
     }
 
+    // noinspection JSUnusedGlobalSymbols
     actionRemoveRelated(data) {
         let id = data.id;
 
@@ -602,9 +606,8 @@ class RelatedListModalView extends ModalView {
 
     /**
      * @protected
-     * @param {JQueryKeyEventObject} e
      */
-    handleShortcutKeyCtrlComma(e) {
+    handleShortcutKeyCtrlComma() {
         if (!this.getSearchView()) {
             return;
         }
@@ -614,9 +617,8 @@ class RelatedListModalView extends ModalView {
 
     /**
      * @protected
-     * @param {JQueryKeyEventObject} e
      */
-    handleShortcutKeyCtrlPeriod(e) {
+    handleShortcutKeyCtrlPeriod() {
         if (!this.getSearchView()) {
             return;
         }

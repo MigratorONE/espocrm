@@ -47,13 +47,13 @@ class MergeView extends MainView {
     setupHeader() {
         this.createView('header', this.headerView, {
             model: this.model,
-            el: '#main > .page-header'
+            fullSelector: '#main > .page-header'
         });
     }
 
     setupRecord() {
         this.createView('body', this.recordView, {
-            el: '#main > .body',
+            fullSelector: '#main > .body',
             models: this.models,
             collection: this.collection
         });
@@ -63,7 +63,7 @@ class MergeView extends MainView {
         return this.buildHeaderHtml([
             $('<a>')
                 .attr('href', '#' + this.models[0].entityType)
-                .text(this.getLanguage().translate(this.models[0].name, 'scopeNamesPlural')),
+                .text(this.getLanguage().translate(this.models[0].entityType, 'scopeNamesPlural')),
             $('<span>')
                 .text(this.getLanguage().translate('Merge'))
         ]);

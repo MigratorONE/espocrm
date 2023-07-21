@@ -56,6 +56,8 @@ class PanelsContainerRecordView extends View {
      * @property {Object.<string,*>} [Options] A view options.
      * @property {boolean} [sticked] To stick to an upper panel.
      * @property {Number} [tabNumber]
+     * @property {string} [aclScope]
+     * @property {Espo.Utils~AccessDefs[]} [accessDataList] Access control defs.
      */
 
     /**
@@ -325,7 +327,7 @@ class PanelsContainerRecordView extends View {
             let options = {
                 model: this.model,
                 panelName: name,
-                el: this.options.el + ' .panel[data-name="' + name + '"] > .panel-body',
+                selector: '.panel[data-name="' + name + '"] > .panel-body',
                 defs: p,
                 mode: this.mode,
                 recordHelper: this.recordHelper,
@@ -362,8 +364,7 @@ class PanelsContainerRecordView extends View {
                 }
 
                 this.createView(name + 'Actions', 'views/record/panel-actions', {
-                    el: this.getSelector() +
-                        '.panel[data-name="'+p.name+'"] > .panel-heading > .panel-actions-container',
+                    selector: '.panel[data-name="' + p.name + '"] > .panel-heading > .panel-actions-container',
                     model: this.model,
                     defs: p,
                     scope: this.scope,

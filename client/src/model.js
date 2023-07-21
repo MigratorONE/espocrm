@@ -492,7 +492,7 @@ class Model {
      *     patch?: boolean,
      *     wait?: boolean,
      * } & Object.<string, *>} [options] Options.
-     * @returns {Promise}
+     * @returns {Promise<Object.<string, *>>}
      * @fires Model#sync
      * @copyright Credits to Backbone.js.
      */
@@ -503,17 +503,17 @@ class Model {
             this.setMultiple(attributes, options);
         }
 
-        let success = options.success;
+        const success = options.success;
 
-        let setAttributes = this.attributes;
+        const setAttributes = this.attributes;
 
         options.success = response => {
-            this.attributes = attributes;
+            this.attributes = setAttributes;
 
             let responseAttributes = this.prepareAttributes(response, options);
 
             if (options.wait) {
-                responseAttributes = {...attributes, ...responseAttributes};
+                responseAttributes = {...setAttributes, ...responseAttributes};
             }
 
             if (responseAttributes) {
@@ -527,7 +527,7 @@ class Model {
             this.trigger('sync', this, response, options);
         };
 
-        let error = options.error;
+        const error = options.error;
 
         options.error = response => {
             if (error) {
@@ -538,7 +538,7 @@ class Model {
         };
 
         if (attributes && options.wait) {
-            // Set temporary attributes to properly find new ids.
+            // Set temporary attributes to properly find new IDs.
             this.attributes =  {...setAttributes, ...attributes};
         }
 
@@ -781,7 +781,7 @@ class Model {
     setRelate(data) {
         let setRelate = options => {
             let link = options.link;
-            let model = options.model;
+            let model = /** @type {module:model} */options.model;
 
             if (!link || !model) {
                 throw new Error('Bad related options');
@@ -792,7 +792,7 @@ class Model {
             switch (type) {
                 case 'belongsToParent':
                     this.set(link + 'Id', model.id);
-                    this.set(link + 'Type', model.name);
+                    this.set(link + 'Type', model.entityType);
                     this.set(link + 'Name', model.get('name'));
 
                     break;
@@ -998,9 +998,10 @@ class Model {
         }
     }
 
+    // noinspection JSUnusedGlobalSymbols
     /**
      * @deprecated Use `getClonedAttributes`.
-     * @todo Remove in v8.0.
+     * @todo Remove in v9.0.
      * @return {Object.<string, *>}
      */
     toJSON() {

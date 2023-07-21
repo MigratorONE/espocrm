@@ -47,7 +47,7 @@ class BottomPanelView extends View {
 
     /**
      * @protected
-     * @type {module:views/record/panels-container~action[]}
+     * @type {Array<module:views/record/panels-container~action|false>}
      */
     actionList = null
 
@@ -273,7 +273,7 @@ class BottomPanelView extends View {
 
         var o = {
             model: this.model,
-            el: this.options.el + ' .field[data-name="' + field + '"]',
+            selector: '.field[data-name="' + field + '"]',
             defs: {
                 name: field,
                 params: params || {},
@@ -342,6 +342,7 @@ class BottomPanelView extends View {
         this.createView(viewKey, viewName, o);
     }
 
+    // noinspection JSUnusedGlobalSymbols
     /**
      * Is tab-hidden.
      *

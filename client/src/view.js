@@ -71,16 +71,15 @@ class View extends BullView {
      */
 
     /**
-     * Add a DOM button-action event handler.
+     * Add a DOM click event handler for a target defined by `data-action="{name}"` attribute.
      *
-     * @todo Add an `<a>` tag support.
      * @param {string} action An action name.
      * @param {module:view~actionHandlerCallback} handler A handler.
      */
     addActionHandler(action, handler) {
-        let fullAction = 'click button[data-action=\"'+action+'\"]';
+        let fullAction = `click [data-action="${action}"]`;
 
-        this.events[fullAction] = handler;
+        this.events[fullAction] = e => handler(e.originalEvent);
     }
 
     /**
@@ -327,7 +326,7 @@ class View extends BullView {
      * Ajax request.
      *
      * @deprecated Use `Espo.Ajax`.
-     * @todo Remove in v8.0.
+     * @todo Remove in v9.0.
      * @param {string} url An URL.
      * @param {string} type A method.
      * @param {any} [data] Data.
@@ -343,7 +342,7 @@ class View extends BullView {
      * POST request.
      *
      * @deprecated Use `Espo.Ajax.postRequest`.
-     * @todo Remove in v8.0.
+     * @todo Remove in v9.0.
      * @param {string} url An URL.
      * @param {any} [data] Data.
      * @param {Object} [options] Options.
@@ -358,7 +357,7 @@ class View extends BullView {
      * GET request.
      *
      * @deprecated Use `Espo.Ajax.getRequest`.
-     * @todo Remove in v8.0.
+     * @todo Remove in v9.0.
      * @param {string} url An URL.
      * @param {any} [data] Data.
      * @param {Object} [options] Options.

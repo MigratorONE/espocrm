@@ -387,14 +387,15 @@ class NavbarSiteView extends View {
         });
 
         this.createView('notificationsBadge', 'views/notification/badge', {
-            el: this.options.el + ' .notifications-badge-container'
+            selector: '.notifications-badge-container',
         });
 
-        let setup = () => {
+        const setup = () => {
             this.setupQuickCreateList();
-            this.setupGlobalSearch();
             this.setupTabDefsList();
         };
+
+        this.setupGlobalSearch();
 
         setup();
 
@@ -450,7 +451,8 @@ class NavbarSiteView extends View {
             return false;
         }
 
-        let defs = scopes[scope] || {};
+        let defs = /** @type {{disabled?: boolean, acl?: boolean, tabAclPermission?: string}} */
+            scopes[scope] || {};
 
         if (defs.disabled) {
             return;
@@ -459,6 +461,7 @@ class NavbarSiteView extends View {
         if (defs.acl) {
             return this.getAcl().check(scope);
         }
+
         if (defs.tabAclPermission) {
             let level = this.getAcl().getPermissionLevel(defs.tabAclPermission);
 
@@ -483,7 +486,7 @@ class NavbarSiteView extends View {
 
         if (this.globalSearchAvailable) {
             this.createView('globalSearch', 'views/global-search/global-search', {
-                el: this.options.el + ' .global-search-container'
+                selector: '.global-search-container',
             });
         }
     }
@@ -535,7 +538,7 @@ class NavbarSiteView extends View {
 
         updateMoreHeight();
 
-        let hideOneTab = () => {
+        const hideOneTab = () => {
             let count = $tabs.children().length;
 
             if (count <= 1) {
@@ -547,7 +550,7 @@ class NavbarSiteView extends View {
             $one.prependTo($more);
         };
 
-        let unhideOneTab = () => {
+        const unhideOneTab = () => {
             let $one = $more.children().eq(0);
 
             if ($one.length) {
@@ -577,7 +580,7 @@ class NavbarSiteView extends View {
         let $moreDd = $('#nav-more-tabs-dropdown');
         let $moreLi = $moreDd.closest('li');
 
-        let updateWidth = () => {
+        const updateWidth = () => {
             let windowWidth = window.innerWidth;
             let moreWidth = $moreLi.width();
 
@@ -621,7 +624,7 @@ class NavbarSiteView extends View {
             }
         };
 
-        let processUpdateWidth = isRecursive => {
+        const processUpdateWidth = isRecursive => {
             if ($navbar.height() > navbarNeededHeight) {
                 updateWidth();
                 setTimeout(() => processUpdateWidth(true), 200);
@@ -680,7 +683,7 @@ class NavbarSiteView extends View {
             $more.scrollTop($window.scrollTop());
         });
 
-        let updateSizeForSide = () => {
+        const updateSizeForSide = () => {
             let windowHeight = window.innerHeight;
             let windowWidth = window.innerWidth;
 
@@ -936,6 +939,14 @@ class NavbarSiteView extends View {
             }
 
             if (typeof item === 'object') {
+                if (item.type === 'divider') {
+                    if (!this.isSide()) {
+                        return false;
+                    }
+
+                    return true;
+                }
+
                 item.itemList = item.itemList || [];
 
                 item.itemList = item.itemList.filter(item => {
@@ -946,6 +957,43 @@ class NavbarSiteView extends View {
             }
 
             return this.filterTabItem(item);
+        });
+
+        function isMoreDelimiter(item) {
+            return item === '_delimiter_' || item === '_delimiter-ext_';
+        }
+
+        function isDivider(item) {
+            return typeof item === 'object' && item.type === 'divider';
+        }
+
+        let moreIsMet = false;
+
+        this.tabList = this.tabList.filter((item, i) => {
+            let nextItem = this.tabList[i + 1];
+            let prevItem = this.tabList[i - 1];
+
+            if (isMoreDelimiter(item)) {
+                moreIsMet = true;
+            }
+
+            if (!isDivider(item)) {
+                return true;
+            }
+
+            if (!nextItem) {
+                return true;
+            }
+
+            if (isDivider(nextItem)) {
+                return false;
+            }
+
+            if (isDivider(prevItem) && isMoreDelimiter(nextItem) && moreIsMet) {
+                return false;
+            }
+
+            return true;
         });
 
         let tabDefsList = [];
@@ -969,28 +1017,27 @@ class NavbarSiteView extends View {
         };
 
         this.tabList.forEach((tab, i) => {
-            if (tab === '_delimiter_' || tab === '_delimiter-ext_') {
+            if (isMoreDelimiter(tab)) {
                 if (!vars.moreIsMet) {
                     vars.moreIsMet = true;
 
                     return;
                 }
-                else {
-                    if (i === this.tabList.length - 1) {
-                        return;
-                    }
 
-                    vars.isHidden = true;
-
-                    tabDefsList.push({
-                        name: 'show-more',
-                        isInMore: true,
-                        className: 'show-more',
-                        html: '<span class="fas fa-ellipsis-h more-icon"></span>',
-                    });
-
+                if (i === this.tabList.length - 1) {
                     return;
                 }
+
+                vars.isHidden = true;
+
+                tabDefsList.push({
+                    name: 'show-more',
+                    isInMore: true,
+                    className: 'show-more',
+                    html: '<span class="fas fa-ellipsis-h more-icon"></span>',
+                });
+
+                return;
             }
 
             tabDefsList.push(
@@ -1008,17 +1055,36 @@ class NavbarSiteView extends View {
         let iconClass = null;
         let color = null;
         let isGroup = false;
+        let isDivider = false;
         let name = tab;
         let aClassName = 'nav-link';
+
+        const translateLabel = label => {
+            if (label.indexOf('$') === 0) {
+                return this.translate(label.slice(1), 'navbarTabs');
+            }
+
+            return label;
+        };
 
         if (tab === 'Home') {
             label = this.getLanguage().translate(tab);
             link = '#';
         }
+        else if (typeof tab === 'object' && tab.type === 'divider') {
+            isDivider = true;
+            label = tab.text;
+            aClassName = 'nav-divider-text';
+            name = 'divider-' + i;
+
+            if (label) {
+                label = translateLabel(label);
+            }
+        }
         else if (typeof tab === 'object') {
             isGroup = true;
 
-            label = tab.text;
+            label = tab.text || '';
             color = tab.color;
             iconClass = tab.iconClass;
 
@@ -1028,8 +1094,8 @@ class NavbarSiteView extends View {
 
             aClassName = 'nav-link-group';
 
-            if (label.indexOf('label@') === 0) {
-                label = this.translate(label.substr(6), 'tabs');
+            if (label) {
+                label = translateLabel(label);
             }
         }
         else {
@@ -1041,11 +1107,11 @@ class NavbarSiteView extends View {
 
         let shortLabel = label.substring(0, 2);
 
-        if (!params.colorsDisabled && !isGroup) {
+        if (!params.colorsDisabled && !isGroup && !isDivider) {
             color = this.getMetadata().get(['clientDefs', tab, 'color']);
         }
 
-        if (!params.tabIconsDisabled && !isGroup) {
+        if (!params.tabIconsDisabled && !isGroup && !isDivider) {
             iconClass = this.getMetadata().get(['clientDefs', tab, 'iconClass'])
         }
 
@@ -1060,6 +1126,7 @@ class NavbarSiteView extends View {
             isAfterShowMore: vars.isHidden,
             aClassName: aClassName,
             isGroup: isGroup,
+            isDivider: isDivider,
         };
 
         if (isGroup) {
@@ -1079,6 +1146,16 @@ class NavbarSiteView extends View {
         return o;
     }
 
+    /**
+     * @typedef {Object} MenuDataItem
+     * @property {string} [link]
+     * @property {string} [html]
+     * @property {true} [divider]
+     */
+
+    /**
+     * @return {MenuDataItem[]}
+     */
     getMenuDataList() {
         let avatarHtml = this.getHelper().getAvatarHtml(this.getUser().id, 'small', 16, 'avatar-link');
 
@@ -1086,6 +1163,7 @@ class NavbarSiteView extends View {
             avatarHtml += ' ';
         }
 
+        /** @type {MenuDataItem[]}*/
         let list = [
             {
                 link: '#User/view/' + this.getUser().id,
@@ -1146,6 +1224,7 @@ class NavbarSiteView extends View {
         });
     }
 
+    // noinspection JSUnusedGlobalSymbols
     actionLogout() {
         this.getRouter().logout();
     }

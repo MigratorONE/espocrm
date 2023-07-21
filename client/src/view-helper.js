@@ -732,7 +732,7 @@ class ViewHelper {
 
         if (!noWhiteSpace) {
             if (html) {
-                html += '&nbsp;';
+                html += `<span style="user-select: none;">&nbsp;</span>`;
             }
         }
 
@@ -941,24 +941,6 @@ class ViewHelper {
         }
 
         return Promise.all(promiseList);
-    }
-
-    /**
-     * @deprecated Use `transformMarkdownText`.
-     * @todo Remove in v8.0.
-     * @internal Used in extensions.
-     */
-    transfromMarkdownText(text, options) {
-        return this.transformMarkdownText(text, options);
-    }
-
-    /**
-     * @deprecated Use `transformMarkdownInlineText`.
-     * @todo Remove in v8.0.
-     * @internal Used in extensions.
-     */
-    transfromMarkdownInlineText(text) {
-        return this.transformMarkdownInlineText(text);
     }
 }
 

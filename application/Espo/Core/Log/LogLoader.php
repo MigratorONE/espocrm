@@ -76,7 +76,7 @@ class LogLoader
 
         $errorHandler = new MonologErrorHandler($log);
 
-        $errorHandler->registerExceptionHandler(null, false);
+        $errorHandler->registerExceptionHandler([], false);
         $errorHandler->registerErrorHandler([], false);
 
         return $log;

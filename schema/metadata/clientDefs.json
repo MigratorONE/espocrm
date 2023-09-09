@@ -33,6 +33,22 @@
             "description": "Hides the search panel on the list view.",
             "type": "boolean"
         },
+        "searchPanelInPortalDisabled": {
+            "description": "Hides the search panel on the list view in portals.",
+            "type": "boolean"
+        },
+        "textFilterDisabled": {
+            "type": "boolean",
+            "description": "Disables text search."
+        },
+        "editDisabled": {
+            "type": "boolean",
+            "description": "Disables edit."
+        },
+        "removeDisabled": {
+            "type": "boolean",
+            "description": "Disables remove."
+        },
         "views": {
             "description": "View classes. Available views: list, detail, edit, listRelated.",
             "type": "object",
@@ -60,6 +76,36 @@
             "additionalProperties": {
                 "type": "string"
             }
+        },
+        "viewSetupHandlers": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "array",
+                "items": {
+                    "anyOf": [
+                        {"type": "string"},
+                        {"enum": ["__APPEND__"]}
+                    ]
+                }
+            },
+            "propertyNames": {
+                "anyOf": [
+                    {"type": "string"},
+                    {
+                        "enum": [
+                            "list",
+                            "detail",
+                            "edit",
+                            "record/list",
+                            "record/search",
+                            "record/detail",
+                            "record/edit",
+                            "record/kanban"
+                        ]
+                    }
+                ]
+            },
+            "description": "View setup handlers. https://docs.espocrm.com/development/frontend/view-setup-handlers/"
         },
         "inlineEditDisabled": {
             "description": "Disable inline edit.",
@@ -119,7 +165,6 @@
             "description": "A list of bool filters.",
             "type": "array",
             "items": {
-                "type": "string",
                 "anyOf": [
                     {"const": "__APPEND__"},
                     {"type": "string"},
@@ -162,6 +207,15 @@
         "menu": {
             "description": "Top-right menu for views (list, detail, edit). Action types: buttons, dropdowns. https://docs.espocrm.com/development/custom-buttons/",
             "type": "object",
+            "propertyNames": {
+                "enum": [
+                    "list",
+                    "detail",
+                    "edit",
+                    "listRelated",
+                    "listTree"
+                ]
+            },
             "additionalProperties": {
                 "type": "object",
                 "propertyNames": {
@@ -173,67 +227,7 @@
                         "anyOf": [
                             {"enum": ["__APPEND__"]},
                             {"const": false},
-                            {
-                                "type": "object",
-                                "properties": {
-                                    "label": {
-                                        "type": "string",
-                                        "description": "A translatable label."
-                                    },
-                                    "labelTranslation": {
-                                        "type": "string",
-                                        "description": "A label translation path. Example: 'Campaign.links.trackingUrls'."
-                                    },
-                                    "link": {
-                                        "type": "string",
-                                        "description": "A link (href)."
-                                    },
-                                    "acl": {
-                                        "enum": [
-                                            "create",
-                                            "read",
-                                            "edit",
-                                            "delete",
-                                            "stream"
-                                        ],
-                                        "description": "An action to check access to. If no access, the item is not displayed."
-                                    },
-                                    "aclScope": {
-                                        "type": "string",
-                                        "description": "A scope to check access to. If no access, the item is not displayed."
-                                    },
-                                    "action": {
-                                        "type": "string",
-                                        "description": "An action. To be used in javascript code for handling."
-                                    },
-                                    "style": {
-                                        "enum": [
-                                            "default",
-                                            "success",
-                                            "warning",
-                                            "danger",
-                                            "info"
-                                        ],
-                                        "description": "A style."
-                                    },
-                                    "data": {
-                                        "type": "object",
-                                        "properties": {
-                                            "handler": {
-                                                "type": "string",
-                                                "description": "A handler class."
-                                            }
-                                        }
-                                    },
-                                    "initFunction": {
-                                        "type": "string",
-                                        "description": "An init function of the handler."
-                                    },
-                                    "accessDataList": {
-                                        "$ref": "#/definitions/accessDataList"
-                                    }
-                                }
-                            }
+                            {"$ref": "#/definitions/menuItem"}
                         ]
                     }
                 }
@@ -296,6 +290,9 @@
                                         "delete",
                                         "stream"
                                     ]
+                                },
+                                "accessDataList": {
+                                    "$ref": "#/definitions/accessDataList"
                                 }
                             }
                         }
@@ -386,6 +383,29 @@
                         "description": "An order direction.",
                         "type": "string",
                         "enum": ["asc", "desc"]
+                    },
+                    "selectHandler": {
+                        "type": "string",
+                        "description": "A select handler for providing filters when selecting related records. Should have a method *getFilters* returning a promise."
+                    },
+                    "createHandler": {
+                        "type": "string",
+                        "description": "A create handler. Provides attributes when creating a new related record. Should have a method *getAttributes* returning a promise."
+                    },
+                    "selectFieldHandler": {
+                        "type": "string",
+                        "description": "A handler called when change a link field. Only for belongs-to and has-one relations. Should have *getAttributes* and *getClearAttributes* methods."
+                    },
+                    "layout": {
+                        "type": "string",
+                        "description": "A list layout name."
+                    },
+                    "selectMandatoryAttributeList": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Attributes to be selected when selecting records."
                     }
                 }
             }
@@ -397,7 +417,19 @@
                 "type": "object",
                 "properties": {
                     "type": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "A type. E.g. list, listSmall."
+                    },
+                    "dataAttributeList": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Data attributes."
+                    },
+                    "allFields": {
+                        "type": "boolean",
+                        "description": "All fields. Actual for the detail type. If false, fields added in the side panel layout won't be available."
                     }
                 }
             }
@@ -547,6 +579,75 @@
         }
     },
     "definitions": {
+        "menuItem": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "description": "A translatable label."
+                },
+                "labelTranslation": {
+                    "type": "string",
+                    "description": "A label translation path. Example: 'Campaign.links.trackingUrls'."
+                },
+                "link": {
+                    "type": "string",
+                    "description": "A link (href)."
+                },
+                "acl": {
+                    "enum": [
+                        "create",
+                        "read",
+                        "edit",
+                        "delete",
+                        "stream"
+                    ],
+                    "description": "An action to check access to. If no access, the item is not displayed."
+                },
+                "aclScope": {
+                    "type": "string",
+                    "description": "A scope to check access to. If no access, the item is not displayed."
+                },
+                "name": {
+                    "type": "string",
+                    "description": "A name."
+                },
+                "action": {
+                    "type": "string",
+                    "description": "An action. To be used in javascript code for handling."
+                },
+                "style": {
+                    "enum": [
+                        "default",
+                        "success",
+                        "warning",
+                        "danger",
+                        "info"
+                    ],
+                    "description": "A style."
+                },
+                "data": {
+                    "type": "object",
+                    "properties": {
+                        "handler": {
+                            "type": "string",
+                            "description": "A handler class."
+                        }
+                    }
+                },
+                "initFunction": {
+                    "type": "string",
+                    "description": "An init function of the handler."
+                },
+                "accessDataList": {
+                    "$ref": "#/definitions/accessDataList"
+                },
+                "configCheck": {
+                    "type": "string",
+                    "description": "A config path to check. Path items are separated by a dot. If a config value is not empty, then the action is allowed. The `!` prefix reverses the check."
+                }
+            }
+        },
         "dynamicLogicVisible": {
             "type": "object",
             "description": "Conditions making the element visible.",

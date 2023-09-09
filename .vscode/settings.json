@@ -2,6 +2,12 @@
     "json.schemas": [
         {
             "fileMatch": [
+                "*/Resources/autoload.json"
+            ],
+            "url": "./schema/autoload.json"
+        },
+        {
+            "fileMatch": [
                 "*/Resources/routes.json"
             ],
             "url": "./schema/routes.json"
@@ -264,6 +270,12 @@
         },
         {
             "fileMatch": [
+                "*/Resources/metadata/app/entityTemplates.json"
+            ],
+            "url": "./schema/metadata/app/entityTemplates.json"
+        },
+        {
+            "fileMatch": [
                 "*/Resources/metadata/app/export.json"
             ],
             "url": "./schema/metadata/app/export.json"
@@ -321,6 +333,12 @@
                 "*/Resources/metadata/app/linkManager.json"
             ],
             "url": "./schema/metadata/app/linkManager.json"
+        },
+        {
+            "fileMatch": [
+                "*/Resources/metadata/app/entityManager.json"
+            ],
+            "url": "./schema/metadata/app/entityManager.json"
         },
         {
             "fileMatch": [

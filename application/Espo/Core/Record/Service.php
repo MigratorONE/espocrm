@@ -40,9 +40,10 @@ use Espo\Core\Exceptions\Forbidden;
 use Espo\Core\Exceptions\ForbiddenSilent;
 use Espo\Core\Exceptions\NotFound;
 use Espo\Core\Exceptions\NotFoundSilent;
-use Espo\Core\Field\LinkParent;
 use Espo\Core\ORM\Entity as CoreEntity;
 use Espo\Core\Record\Access\LinkCheck;
+use Espo\Core\Record\ActionHistory\Action;
+use Espo\Core\Record\ActionHistory\ActionLogger;
 use Espo\Core\Record\Formula\Processor as FormulaProcessor;
 use Espo\Core\Utils\Json;
 use Espo\Core\Acl;
@@ -66,10 +67,13 @@ use Espo\ORM\EntityManager;
 use Espo\ORM\Query\Part\WhereClause;
 use Espo\Tools\Stream\Service as StreamService;
 use Espo\Entities\User;
-use Espo\Entities\ActionHistoryRecord;
+
 use stdClass;
 use InvalidArgumentException;
 use LogicException;
+use RuntimeException;
+
+use const E_USER_DEPRECATED;
 
 /**
  * The layer between a controller and ORM repository. For CRUD and other operations with records.
@@ -139,8 +143,6 @@ class Service implements Crud,
     protected $nonAdminReadOnlyLinkList = [];
     /** @var string[] */
     protected $onlyAdminLinkList = [];
-    /** @var array<string, array<string, mixed>> */
-    protected $linkParams = [];
     /** @var array<string, string[]> */
     protected $linkMandatorySelectAttributeList = [];
     /** @var string[] */
@@ -166,14 +168,13 @@ class Service implements Crud,
     /** @var bool */
     protected $forceSelectAllAttributes = false;
     /** @var string[] */
-    protected $validateSkipFieldList = [];
-    /**
-     * @todo Move to metadata.
-     * @var string[]
-     */
-    protected $validateRequiredSkipFieldList = [];
-    /** @var string[] */
     protected $duplicateIgnoreAttributeList = [];
+    /**
+     * @var string[]
+     * @deprecated As of v8.0. Use `suppressValidationList` metadata parameter.
+     * @todo Remove in v9.0.
+     */
+    protected $validateSkipFieldList = [];
 
     /** @var Acl */
     protected $acl = null;
@@ -188,6 +189,7 @@ class Service implements Crud,
     private ?ListLoadProcessor $listLoadProcessor = null;
     private ?DuplicateFinder $duplicateFinder = null;
     private ?LinkCheck $linkCheck = null;
+    private ?ActionLogger $actionLogger = null;
 
     protected const MAX_SELECT_TEXT_ATTRIBUTE_LENGTH = 10000;
 
@@ -207,7 +209,7 @@ class Service implements Crud,
     /**
      * Add an action-history record.
      *
-     * @param ActionHistoryRecord::ACTION_* $action
+     * @param Action::* $action
      */
     public function processActionHistoryRecord(string $action, Entity $entity): void
     {
@@ -219,18 +221,16 @@ class Service implements Crud,
             return;
         }
 
-        /** @var ActionHistoryRecord $historyRecord */
-        $historyRecord = $this->entityManager->getNewEntity(ActionHistoryRecord::ENTITY_TYPE);
+        $this->getActionLogger()->log($action, $entity);
+    }
 
-        $historyRecord
-            ->setAction($action)
-            ->setUserId($this->user->getId())
-            ->setAuthTokenId($this->user->get('authTokenId'))
-            ->setAuthLogRecordId($this->user->get('authLogRecordId'))
-            ->setIpAddress($this->user->get('ipAddress'))
-            ->setTarget(LinkParent::createFromEntity($entity));
+    private function getActionLogger(): ActionLogger
+    {
+        if (!$this->actionLogger) {
+            $this->actionLogger = $this->injectableFactory->createResolved(ActionLogger::class);
+        }
 
-        $this->entityManager->saveEntity($historyRecord);
+        return $this->actionLogger;
     }
 
     /**
@@ -239,7 +239,7 @@ class Service implements Crud,
      * @param non-empty-string $id
      * @return TEntity
      * @throws NotFoundSilent If not found.
-     * @throws ForbiddenSilent If no read access.
+     * @throws Forbidden If no read access.
      */
     public function read(string $id, ReadParams $params): Entity
     {
@@ -258,7 +258,7 @@ class Service implements Crud,
         }
 
         $this->recordHookManager->processBeforeRead($entity, $params);
-        $this->processActionHistoryRecord(ActionHistoryRecord::ACTION_READ, $entity);
+        $this->processActionHistoryRecord(Action::READ, $entity);
 
         return $entity;
     }
@@ -266,12 +266,31 @@ class Service implements Crud,
     /**
      * Get an entity by ID. Access control check is performed.
      *
-     * @throws ForbiddenSilent If no read access.
+     * @throws Forbidden If no read access.
      * @return ?TEntity
      */
     public function getEntity(string $id): ?Entity
     {
-        $entity = $this->getRepository()->getById($id);
+        try {
+            $query = $this->selectBuilderFactory
+                ->create()
+                ->from($this->entityType)
+                ->withSearchParams(
+                    SearchParams::create()->withSelect(['*'])
+                )
+                ->withAdditionalApplierClassNameList(
+                    $this->createSelectApplierClassNameListProvider()->get($this->entityType)
+                )
+                ->build();
+        }
+        catch (BadRequest|Error $e) {
+            throw new RuntimeException($e->getMessage());
+        }
+
+        $entity = $this->getRepository()
+            ->clone($query)
+            ->where(['id' => $id])
+            ->findOne();
 
         if (!$entity && $this->user->isAdmin()) {
             $entity = $this->getEntityEvenDeleted($id);
@@ -354,8 +373,14 @@ class Service implements Crud,
     {
         $params = FieldValidationParams
             ::create()
-            ->withSkipFieldList($this->validateSkipFieldList)
-            ->withTypeSkipFieldList('required', $this->validateRequiredSkipFieldList);
+            ->withSkipFieldList($this->validateSkipFieldList);
+
+        if (!empty($this->validateSkipFieldList)) {
+            trigger_error(
+                '$validateSkipFieldList is deprecated and will be removed in v9.0.',
+                E_USER_DEPRECATED
+            );
+        }
 
         $this->fieldValidationManager->process($entity, $data, $params);
     }
@@ -497,6 +522,7 @@ class Service implements Crud,
     /**
      * @deprecated As of v7.0. Use filterCreateInput or filterUpdateInput. Or better don't extend the class.
      * Use entityAcl, app > acl, roles to restrict write access for specific fields.
+     * @todo Remove in v9.0.
      * @param stdClass $data
      * @return void
      */
@@ -507,6 +533,7 @@ class Service implements Crud,
     /**
      * @deprecated As of v7.0. Use filterCreateInput or filterUpdateInput. Or better don't extend the class.
      * Use entityAcl, app > acl, roles to restrict write access for specific fields.
+     * @todo Remove in v9.0.
      * @param stdClass $data
      * @return void
      */
@@ -577,6 +604,7 @@ class Service implements Crud,
 
     /**
      * @param TEntity $entity
+     * @todo Move the logic to a class. Make customizable (recordDefs)?
      */
     public function populateDefaults(Entity $entity, stdClass $data): void
     {
@@ -664,7 +692,7 @@ class Service implements Crud,
 
         $this->processValidation($entity, $data);
         $this->processAssignmentCheck($entity);
-        $this->getLinkCheck()->process($entity);
+        $this->getLinkCheck()->processFields($entity);
 
         if (!$params->skipDuplicateCheck()) {
             $this->processDuplicateCheck($entity);
@@ -681,7 +709,7 @@ class Service implements Crud,
         $this->afterCreateProcessDuplicating($entity, $params);
         $this->loadAdditionalFields($entity);
         $this->prepareEntityForOutput($entity);
-        $this->processActionHistoryRecord(ActionHistoryRecord::ACTION_CREATE, $entity);
+        $this->processActionHistoryRecord(Action::CREATE, $entity);
 
         return $entity;
     }
@@ -731,7 +759,7 @@ class Service implements Crud,
 
         $this->processValidation($entity, $data);
         $this->processAssignmentCheck($entity);
-        $this->getLinkCheck()->process($entity);
+        $this->getLinkCheck()->processFields($entity);
 
         $checkForDuplicates =
             $this->metadata->get(['recordDefs', $this->entityType, 'updateDuplicateCheck']) ??
@@ -748,8 +776,13 @@ class Service implements Crud,
         $this->entityManager->saveEntity($entity);
 
         $this->afterUpdateEntity($entity, $data);
+
+        if ($this->metadata->get(['recordDefs', $this->entityType, 'loadAdditionalFieldsAfterUpdate'])) {
+            $this->loadAdditionalFields($entity);
+        }
+
         $this->prepareEntityForOutput($entity);
-        $this->processActionHistoryRecord(ActionHistoryRecord::ACTION_UPDATE, $entity);
+        $this->processActionHistoryRecord(Action::UPDATE, $entity);
 
         return $entity;
     }
@@ -785,7 +818,7 @@ class Service implements Crud,
         $this->beforeDeleteEntity($entity);
         $this->getRepository()->remove($entity);
         $this->afterDeleteEntity($entity);
-        $this->processActionHistoryRecord(ActionHistoryRecord::ACTION_DELETE, $entity);
+        $this->processActionHistoryRecord(Action::DELETE, $entity);
     }
 
     /**
@@ -851,7 +884,7 @@ class Service implements Crud,
         return RecordCollection::create($collection, $total);
     }
 
-    protected function createSelectApplierClassNameListProvider(): ApplierClassNameListProvider
+    private function createSelectApplierClassNameListProvider(): ApplierClassNameListProvider
     {
         return $this->injectableFactory->create(ApplierClassNameListProvider::class);
     }
@@ -859,7 +892,7 @@ class Service implements Crud,
     /**
      * @return TEntity|null
      */
-    protected function getEntityEvenDeleted(string $id): ?Entity
+    private function getEntityEvenDeleted(string $id): ?Entity
     {
         $query = $this->entityManager
             ->getQueryBuilder()
@@ -957,14 +990,11 @@ class Service implements Crud,
             ->getRelation($link)
             ->getForeignEntityType();
 
-        $linkParams = $this->linkParams[$link] ?? [];
+        $skipAcl = $this->metadata
+            ->get("recordDefs.$this->entityType.relationships.$link.selectAccessControlDisabled") ?? false;
 
-        $skipAcl = $linkParams['skipAcl'] ?? false;
-
-        if (!$skipAcl) {
-            if (!$this->acl->check($foreignEntityType, AclTable::ACTION_READ)) {
-                throw new Forbidden();
-            }
+        if (!$skipAcl && !$this->acl->check($foreignEntityType, AclTable::ACTION_READ)) {
+            throw new Forbidden();
         }
 
         $recordService = $this->recordServiceContainer->get($foreignEntityType);
@@ -990,7 +1020,10 @@ class Service implements Crud,
 
         $selectBuilder
             ->from($foreignEntityType)
-            ->withSearchParams($preparedSearchParams);
+            ->withSearchParams($preparedSearchParams)
+            ->withAdditionalApplierClassNameList(
+                $this->createSelectApplierClassNameListProvider()->get($foreignEntityType)
+            );
 
         if (!$skipAcl) {
             $selectBuilder->withStrictAccessControl();
@@ -1133,7 +1166,7 @@ class Service implements Crud,
             throw new LogicException("Only core entities are supported.");
         }
 
-        $this->getLinkCheck()->processLink($entity, $link);
+        $this->getLinkCheck()->processUnlink($entity, $link);
 
         if ($this->processUnlinkMethod($id, $link, $foreignId)) {
             return;
@@ -1151,7 +1184,7 @@ class Service implements Crud,
             throw new NotFound();
         }
 
-        $this->getLinkCheck()->processLinkForeign($entity, $link, $foreignEntity);
+        $this->getLinkCheck()->processUnlinkForeign($entity, $link, $foreignEntity);
 
         $this->recordHookManager->processBeforeUnlink($entity, $link, $foreignEntity);
 
@@ -1739,21 +1772,15 @@ class Service implements Crud,
         }
     }
 
-    /**
-     * @deprecated
-     * @todo Remove in v7.6.
-     * @param string $type
-     * @return string[]
-     */
-    protected function getFieldByTypeList($type)
-    {
-        return $this->fieldUtil->getFieldByTypeList($this->entityType, $type);
-    }
-
     public function prepareSearchParams(SearchParams $searchParams): SearchParams
     {
-        return $this
-            ->prepareSearchParamsSelect($searchParams)
+        $searchParams = $this->prepareSearchParamsSelect($searchParams);
+
+        if ($searchParams->getSelect() === null) {
+            $searchParams = $searchParams->withSelect(['*']);
+        }
+
+        return $searchParams
             ->withMaxTextAttributeLength(
                 $this->getMaxSelectTextAttributeLength()
             );

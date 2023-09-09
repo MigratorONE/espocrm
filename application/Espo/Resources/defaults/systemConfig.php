@@ -75,6 +75,7 @@ return [
         'internalOutboundEmailFromAddress',
         'requiredPhpVersion',
         'requiredMysqlVersion',
+        'requiredPostgresqlVersion',
         'recommendedMysqlParams',
         'requiredPhpLibs',
         'recommendedPhpLibs',
@@ -100,8 +101,14 @@ return [
         'authTokenSecretDisabled',
         'authLogDisabled',
         'authApiUserLogDisabled',
+        'authFailedAttemptsPeriod',
+        'authMaxFailedAttemptNumber',
         'ipAddressServerParam',
         'jobNoTableLocking',
+        'passwordRecoveryRequestLifetime',
+        'passwordChangeRequestNewUserLifetime',
+        'passwordChangeRequestExistingUserLifetime',
+        'passwordRecoveryInternalIntervalPeriod',
     ],
     'adminItems' => [
         'devMode',
@@ -194,9 +201,6 @@ return [
         'authAnotherUserDisabled',
         'emailAddressEntityLookupDefaultOrder',
         'phoneNumberEntityLookupDefaultOrder',
-        'authFailedAttemptsPeriod',
-        'authMaxFailedAttemptNumber',
-        'authLogDisabled',
         'latestVersion',
     ],
     'superAdminItems' => [
@@ -249,7 +253,6 @@ return [
     'requiredPhpLibs' => [
         'json',
         'openssl',
-        'pdo_mysql',
         'mbstring',
         'zip',
         'gd',
@@ -271,6 +274,7 @@ return [
     'requiredMysqlVersion' => '5.7.0',
     'recommendedMysqlParams' => [],
     'requiredMariadbVersion' => '10.2.2',
+    'requiredPostgresqlVersion' => '15.0',
     'recommendedMariadbParams' => [],
     /** Max execution time (in seconds) allocated for a single job. If exceeded then set to Failed.*/
     'jobPeriod' => 7800,

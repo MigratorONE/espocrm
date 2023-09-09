@@ -67,6 +67,11 @@ class Metadata
         ['app', 'api', 'routeMiddlewareClassNameListMap', self::ANY_KEY],
         ['app', 'api', 'controllerMiddlewareClassNameListMap', self::ANY_KEY],
         ['app', 'api', 'controllerActionMiddlewareClassNameListMap', self::ANY_KEY],
+        ['app', 'entityManager', 'createHookClassNameList'],
+        ['app', 'entityManager', 'deleteHookClassNameList'],
+        ['app', 'entityManager', 'updateHookClassNameList'],
+        ['app', 'linkManager', 'createHookClassNameList'],
+        ['app', 'linkManager', 'deleteHookClassNameList'],
         ['recordDefs', self::ANY_KEY, 'readLoaderClassNameList'],
         ['recordDefs', self::ANY_KEY, 'listLoaderClassNameList'],
         ['recordDefs', self::ANY_KEY, 'saverClassNameList'],
@@ -160,11 +165,11 @@ class Metadata
     /**
     * Get all metadata.
     *
-    * @param bool $isJSON
-    * @param bool $reload
-    * @return array<string, mixed>|string
+    * @/param bool $isJSON
+    * @/param bool $reload
+    * @/return array<string, mixed>|string
     */
-    public function getAll(bool $isJSON = false, bool $reload = false)
+    /*public function getAll(bool $isJSON = false, bool $reload = false)
     {
         if ($reload) {
             $this->init($reload);
@@ -177,7 +182,7 @@ class Metadata
         }
 
         return $this->data;
-    }
+    }*/
 
     private function objInit(bool $reload = false): void
     {
@@ -231,71 +236,9 @@ class Metadata
         return Util::getValueByKey($objData, $key, $default);
     }
 
-    public function getAllForFrontend(): stdClass
+    public function getAll(): stdClass
     {
-        $data = $this->getObjData();
-
-        $frontendHiddenPathList = $this->get(['app', 'metadata', 'frontendHiddenPathList'], []);
-
-        foreach ($frontendHiddenPathList as $row) {
-            $this->removeDataByPath($row, $data);
-        }
-
-        return $data;
-    }
-
-    /**
-     *
-     * @param string[] $row
-     * @param stdClass $data
-     */
-    private function removeDataByPath($row, &$data): void
-    {
-        $p = &$data;
-        $path = [&$p];
-
-        foreach ($row as $i => $item) {
-            if (is_array($item)) {
-                break;
-            }
-
-            if ($item === self::ANY_KEY) {
-                foreach (get_object_vars($p) as &$v) {
-                    $this->removeDataByPath(
-                        array_slice($row, $i + 1),
-                        $v
-                    );
-                }
-
-                return;
-            }
-
-            if (!property_exists($p, $item)) {
-                break;
-            }
-
-            if ($i == count($row) - 1) {
-                unset($p->$item);
-
-                $o = &$p;
-
-                for ($j = $i - 1; $j > 0; $j--) {
-                    if (is_object($o) && !count(get_object_vars($o))) {
-                        $o = &$path[$j];
-                        $k = $row[$j];
-
-                        unset($o->$k);
-                    }
-                    else {
-                        break;
-                    }
-                }
-            }
-            else {
-                $p = &$p->$item;
-                $path[] = &$p;
-            }
-        }
+        return $this->getObjData();
     }
 
     /**
@@ -323,7 +266,7 @@ class Metadata
                 }
 
                 if (isset($collectionItem->order)) {
-                     $collectionItem->asc = $collectionItem->order === 'asc' ? true : false;
+                     $collectionItem->asc = $collectionItem->order === 'asc';
                 }
                 else if (isset($collectionItem->asc)) {
                     $collectionItem->order = $collectionItem->asc === true ? 'asc' : 'desc';
@@ -372,7 +315,7 @@ class Metadata
      */
     public function getCustom(string $key1, string $key2, $default = null)
     {
-        $filePath = $this->customPath . "/{$key1}/{$key2}.json";
+        $filePath = $this->customPath . "/$key1/$key2.json";
 
         if (!$this->fileManager->isFile($filePath)) {
             return $default;
@@ -402,7 +345,7 @@ class Metadata
             }
         }
 
-        $filePath = $this->customPath . "/{$key1}/{$key2}.json";
+        $filePath = $this->customPath . "/$key1/$key2.json";
 
         $changedData = Json::encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
@@ -464,7 +407,7 @@ class Metadata
                 $unsetList = $unsets;
 
                 foreach ($unsetList as $unsetItem) {
-                    if (preg_match('/fields\.([^\.]+)/', $unsetItem, $matches) && isset($matches[1])) {
+                    if (preg_match('/fields\.([^.]+)/', $unsetItem, $matches) && isset($matches[1])) {
                         $fieldName = $matches[1];
                         $fieldPath = [$key1, $key2, 'fields', $fieldName];
 
@@ -557,7 +500,7 @@ class Metadata
                         continue;
                     }
 
-                    $filePath = $path . "/{$key1}/{$key2}.json";
+                    $filePath = $path . "/$key1/$key2.json";
 
                     $result &= $this->fileManager->mergeJsonContents($filePath, $data);
                 }
@@ -571,13 +514,13 @@ class Metadata
                         continue;
                     }
 
-                    $filePath = $path . "/{$key1}/{$key2}.json";
+                    $filePath = $path . "/$key1/$key2.json";
 
                     $rowResult = $this->fileManager->unsetJsonContents($filePath, $unsetData);
 
                     if (!$rowResult) {
                         throw new LogicException(
-                            "Metadata items {$key1}.{$key2} can be deleted for custom code only."
+                            "Metadata items $key1.$key2 can be deleted for custom code only."
                         );
                     }
                 }

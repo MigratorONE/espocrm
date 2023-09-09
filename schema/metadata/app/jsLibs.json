@@ -24,14 +24,10 @@
             },
             "exportsTo": {
                 "anyOf": [
-                    {
-                        "type": "string"
-                    },
-                    {
-                        "enum": ["window", "$.fn"]
-                    }
+                    {"type": "string"},
+                    {"enum": ["window", "$.fn"]}
                 ],
-                "description": "To where the lib is exported. Use dots to define a path."
+                "description": "If the lib exposes itself w/o a module, an object to which the lib is exported. Use dots to define a path."
             },
             "exportsAs": {
                 "type": "string",
@@ -40,6 +36,17 @@
             "sourceMap": {
                 "type": "boolean",
                 "description": "Whether the source map file is available."
+            },
+            "exposeAs": {
+                "type": "string",
+                "description": "If set, the lib will be exposed to the window object. A variable name the lib will be set to. To be used for backward compatibility reasons."
+            },
+            "aliases": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                },
+                "description": "Additional module IDs the lib will be available by. Can be useful for establishing backward compatibility or when another lib requires this lib by a different ID."
             }
         }
     }

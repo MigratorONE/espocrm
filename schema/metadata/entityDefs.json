@@ -96,6 +96,80 @@
                         "properties": {
                             "type": {
                                 "anyOf": [
+                                    {"const": "varchar"},
+                                    {"const": "text"},
+                                    {"const": "wysiwyg"},
+                                    {"const": "int"},
+                                    {"const": "float"},
+                                    {"const": "currency"},
+                                    {"const": "url"},
+                                    {"const": "personName"},
+                                    {"const": "address"},
+                                    {"const": "link"},
+                                    {"const": "linkMultiple"},
+                                    {"const": "linkParent"},
+                                    {"const": "linkOne"},
+                                    {"const": "email"},
+                                    {"const": "phone"},
+                                    {"const": "enum"},
+                                    {"const": "multiEnum"},
+                                    {"const": "array"},
+                                    {"const": "checklist"},
+                                    {"const": "urlMultiple"}
+                                ]
+                            }
+                        }
+                    },
+                    "then": {
+                        "properties": {
+                            "required": {
+                                "type": "boolean",
+                                "description": "The field is required."
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "anyOf": [
+                                    {"const": "varchar"},
+                                    {"const": "text"},
+                                    {"const": "wysiwyg"},
+                                    {"const": "int"},
+                                    {"const": "float"},
+                                    {"const": "currency"},
+                                    {"const": "enum"},
+                                    {"const": "multiEnum"},
+                                    {"const": "array"},
+                                    {"const": "checklist"},
+                                    {"const": "urlMultiple"}
+                                ]
+                            }
+                        }
+                    },
+                    "then": {
+                        "properties": {
+                            "default": {
+                                "anyOf": [
+                                    {"type": "boolean"},
+                                    {"type": "string"},
+                                    {"type": "array"},
+                                    {"type": "integer"},
+                                    {"type": "number"},
+                                    {"type": "null"}
+                                ],
+                                "description": "A default value."
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "anyOf": [
                                     {"const": "enum"},
                                     {"const": "multiEnum"},
                                     {"const": "array"},
@@ -202,6 +276,89 @@
                             }
                         }
                     }
+                },
+                {
+                    "if": {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "dbType": {
+                                        "anyOf": [
+                                            {"const": "decimal"}
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                "properties": {
+                                    "type": {
+                                        "anyOf": [
+                                            {"const": "currency"}
+                                        ]
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    "then": {
+                        "properties": {
+                            "precision": {
+                                "type": "integer",
+                                "description": "A precision."
+                            },
+                            "scale": {
+                                "type": "integer",
+                                "description": "A scale."
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "anyOf": [
+                                    {"const": "int"}
+                                ]
+                            }
+                        }
+                    },
+                    "then": {
+                        "properties": {
+                            "min": {
+                                "type": "integer",
+                                "description": "A minimum value."
+                            },
+                            "max": {
+                                "type": "integer",
+                                "description": "A maximum value."
+                            }
+                        }
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "anyOf": [
+                                    {"const": "float"}
+                                    {"const": "currency"}
+                                ]
+                            }
+                        }
+                    },
+                    "then": {
+                        "properties": {
+                            "min": {
+                                "type": "number",
+                                "description": "A minimum value."
+                            },
+                            "max": {
+                                "type": "number",
+                                "description": "A maximum value."
+                            }
+                        }
+                    }
                 }
             ],
             "properties": {
@@ -297,6 +454,10 @@
                     "type": "boolean",
                     "description": "Disables the field."
                 },
+                "utility": {
+                    "type": "boolean",
+                    "description": "The field will be hidden from a user on the UI but not disabled."
+                },
                 "tooltip": {
                     "type": ["string", "boolean"],
                     "description": "Enable a tooltip for the field. A tooltip text is taken from the language by: {EntityType} > tooltips > {fieldName}. If defined as a string, then text will be taken from the language by: {EntityType} > tooltips > {value}."
@@ -329,6 +490,13 @@
                     },
                     "description": "A custom mandatory validation list for the field. Use this parameter to re-define mandatory validations applied for a specific field. By default, mandatory validations for a field type are applied."
                 },
+                "suppressValidationList": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Validations to be bypassed for the field."
+                },
                 "customizationDisabled": {
                     "type": "boolean",
                     "description": "Disables the ability to customize the field in the Entity Manager tool."
@@ -355,6 +523,14 @@
                     "type": "boolean",
                     "description": "Disables the ability to add the field in formula-script, templates and some other tools."
                 },
+                "directUpdateDisabled": {
+                    "type": "boolean",
+                    "description": "Indicates that updating the field directly is not possible."
+                },
+                "foreignAccessDisabled": {
+                    "type": "boolean",
+                    "description": "Indicates that access to the field through a link is not feasible."
+                },
                 "importDisabled": {
                     "type": "boolean",
                     "description": "Disables the ability to import the field."
@@ -375,6 +551,21 @@
                 "attributeExtractorClassName": {
                     "type": "string",
                     "description": "An extractor for value objects. For field types it's defined at metadata > fields. Here you can define an extractor for a specific field."
+                },
+                "detailLayoutIncompatibleFieldList": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Fields that are incompatible with the subject field on detail view layouts."
+                },
+                "converterClassName": {
+                    "type": "string",
+                    "description": "Converts field defs to ORM metadata. Should implement Espo\\Core\\Utils\\Database\\Orm\\FieldConverter."
+                },
+                "duplicatorClassName": {
+                    "type": "string",
+                    "description": "Duplicates attributes of a field. Some fields can require some processing when an entity is being duplicated. Should implement Espo\\Core\\Record\\Duplicator\\FieldDuplicator."
                 },
                 "select": {
                     "type": "object",
@@ -451,7 +642,14 @@
                         "properties": {
                             "whereClause": {
                                 "description": "A WHERE clause.",
-                                "$ref": "#/definitions/whereClause"
+                                "anyOf": [
+                                    {"$ref": "#/definitions/whereClause"},
+                                    {
+                                        "type": "array",
+                                        "items": {"$ref": "#/definitions/whereClause"}
+                                    }
+                                ]
+
                             },
                             "leftJoins": {
                                 "description": "LEFT JOINs",
@@ -559,8 +757,36 @@
                 "notMergeable": {
                     "type": "boolean",
                     "description": "Disable merging related records when duplicate records are being merged. For hasMany, hasChildren."
+                },
+                "utility": {
+                    "type": "boolean",
+                    "description": "The link will be hidden from a user on the UI but not disabled."
                 }
-            }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "type": {
+                                "anyOf": [
+                                    {"const": "belongsToParent"}
+                                ]
+                            }
+                        }
+                    },
+                    "then": {
+                        "properties": {
+                            "entityList": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "description": "Entity types."
+                            }
+                        }
+                    }
+                }
+            ]
         },
         "joins": {
             "type": "array",

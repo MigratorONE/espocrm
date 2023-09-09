@@ -287,7 +287,6 @@
     },
     "messages": {
         "pleaseWait": "Please wait...",
-        "posting": "Posting...",
         "loading": "Loading...",
         "saving": "Saving...",
         "confirmLeaveOutMessage": "Are you sure you want to leave the form?",
@@ -373,12 +372,14 @@
         "noAccessToRecord": "Operation requires `{action}` access to record.",
         "noAccessToForeignRecord": "Operation requires `{action}` access to foreign record.",
         "noLinkAccess": "No access to link operation for a specific record.",
+        "cannotUnrelateRequiredLink": "Can't unrelate required link.",
         "cannotRelateNonExisting": "Can't relate with non-existing {foreignEntityType} record.",
         "cannotRelateForbidden": "Can't relate with forbidden {foreignEntityType} record. `{action}` access required.",
         "cannotRelateForbiddenLink": "No access to link '{link}'.",
         "error404": "The url you requested can't be handled.",
         "error403": "You don't have an access to this area.",
-        "emptyMassUpdate": "No fields available for Mass Update."
+        "emptyMassUpdate": "No fields available for Mass Update.",
+        "attemptIntervalFailure": "The operation is not allowed during a specific time interval. Wait for some time before the next attempt."
     },
     "boolFilters": {
         "onlyMy": "Only My",
@@ -843,6 +844,7 @@
     },
     "themes": {
         "Dark": "Dark",
+        "Light": "Light",
         "Espo": "Espo",
         "EspoRtl": "RTL",
         "Sakura": "Sakura",
@@ -875,10 +877,19 @@
         "varchar_pattern": "Likely, the value contains not allowed characters.",
         "email_emailAddress": "Invalid email address value.",
         "phone_phoneNumber": "Invalid phone number value.",
-        "dateTimeOptional_valid": "Invalid date-time value.",
-        "dateTime_valid": "Invalid date-time value.",
+        "datetimeOptional_valid": "Invalid date-time value.",
+        "datetime_valid": "Invalid date-time value.",
         "date_valid": "Invalid date value.",
         "enum_valid": "Invalid enum value. The value must be one of defined enum options. An empty value is allowed only if the field has an empty option.",
+        "int_valid": "Invalid integer number value.",
+        "float_valid": "Invalid number value.",
         "multiEnum_valid": "Invalid multi-enum value. Values must be one of defined field options."
+    },
+    "navbarTabs": {
+        "Business": "Business",
+        "Marketing": "Marketing",
+        "Support": "Support",
+        "CRM": "CRM",
+        "Activities": "Activities"
     }
 }

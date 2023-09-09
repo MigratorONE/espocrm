@@ -26,24 +26,17 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-define('views/admin/layouts/grid',
-['views/admin/layouts/base', 'res!client/css/misc/layout-manager-grid.css'],
-function (Dep, styleCss) {
+define('views/admin/layouts/grid', ['views/admin/layouts/base'], function (Dep) {
 
     return Dep.extend({
 
         template: 'admin/layouts/grid',
 
         dataAttributeList: null,
-
         panels: null,
-
         columnCount: 2,
-
         panelDataAttributeList: ['panelName', 'style'],
-
         panelDataAttributesDefs: {},
-
         panelDynamicLogicDefs: null,
 
         data: function () {
@@ -64,7 +57,7 @@ function (Dep, styleCss) {
             '<a role="button" data-action="minusCell" class="remove-field"><i class="fas fa-minus"></i></a>' +
             '</li>',
 
-        events: _.extend({
+        additionalEvents: {
             'click #layout a[data-action="addPanel"]': function () {
                 this.addPanel();
                 this.setIsChanged();
@@ -235,19 +228,25 @@ function (Dep, styleCss) {
                     });
                 });
             }
-        }, Dep.prototype.events),
+        },
 
         normalizeDisabledItemList: function () {
-            $('#layout ul.cells.disabled > li').each((i, el) => {
-            });
+            //$('#layout ul.cells.disabled > li').each((i, el) => {});
         },
 
         setup: function () {
             Dep.prototype.setup.call(this);
 
+            this.events = {
+                ...this.additionalEvents,
+                ...this.events,
+            };
+
             this.panelsData = {};
 
-            this.$style = $('<style>').html(styleCss).appendTo($('body'));
+            Espo.loader.require('res!client/css/misc/layout-manager-grid.css', styleCss => {
+                this.$style = $('<style>').html(styleCss).appendTo($('body'));
+            });
         },
 
         onRemove: function () {
@@ -305,17 +304,15 @@ function (Dep, styleCss) {
             return panelDataList;
         },
 
-        cancel: function () {
-            this.loadLayout(() => {
+        prepareLayout: function () {
+            return new Promise(resolve => {
                 let countLoaded = 0;
-
-                this.setIsNotChanged();
 
                 this.setupPanels(() => {
                     countLoaded ++;
 
                     if (countLoaded === this.panels.length) {
-                        this.reRender();
+                        resolve();
                     }
                 });
             });
@@ -369,7 +366,7 @@ function (Dep, styleCss) {
             });
 
             this.createView('panel-' + data.number, 'view', {
-                el: this.getSelector() + ' li.panel-layout[data-number="'+data.number+'"]',
+                selector: 'li.panel-layout[data-number="'+data.number+'"]',
                 template: 'admin/layouts/grid-panel',
                 data: () => {
                     var o = Espo.Utils.clone(data);
@@ -462,7 +459,9 @@ function (Dep, styleCss) {
         afterRender: function () {
             this.makeDraggable();
 
-            this.$el.find('.enabled-well').focus();
+            let wellElement = /** @type {HTMLElement} */this.$el.find('.enabled-well').get(0)
+
+            wellElement.focus({preventScroll: true});
         },
 
         fetch: function () {

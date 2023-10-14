@@ -69,6 +69,7 @@ class CalendarView extends View {
         week: 'MMMM YYYY',
         day: 'dddd, MMMM D, YYYY',
     }
+    rangeSeparator = ' – '
 
     /** @private */
     fetching = false
@@ -113,7 +114,7 @@ class CalendarView extends View {
         },
         /** @this CalendarView */
         'click [data-action="mode"]': function (e) {
-            let mode = $(e.currentTarget).data('mode');
+            const mode = $(e.currentTarget).data('mode');
 
             this.selectMode(mode);
         },
@@ -123,10 +124,10 @@ class CalendarView extends View {
         },
         /** @this CalendarView */
         'click [data-action="toggleScopeFilter"]': function (e) {
-            let $target = $(e.currentTarget);
-            let filterName = $target.data('name');
+            const $target = $(e.currentTarget);
+            const filterName = $target.data('name');
 
-            let $check = $target.find('.filter-check-icon');
+            const $check = $target.find('.filter-check-icon');
 
             if ($check.hasClass('hidden')) {
                 $check.removeClass('hidden');
@@ -186,7 +187,7 @@ class CalendarView extends View {
             this.isCustomViewAvailable = false;
         }
 
-        let scopeList = [];
+        const scopeList = [];
 
         this.scopeList.forEach(scope => {
             if (this.getAcl().check(scope)) {
@@ -207,7 +208,7 @@ class CalendarView extends View {
         }
 
         this.enabledScopeList.forEach(item => {
-            let color = this.getMetadata().get(['clientDefs', item, 'color']);
+            const color = this.getMetadata().get(['clientDefs', item, 'color']);
 
             if (color) {
                 this.colors[item] = color;
@@ -239,7 +240,7 @@ class CalendarView extends View {
             this.viewId = this.mode.slice(5);
             this.isCustomView = true;
 
-            let calendarViewDataList = this.getPreferences().get('calendarViewDataList') || [];
+            const calendarViewDataList = this.getPreferences().get('calendarViewDataList') || [];
 
             calendarViewDataList.forEach(item => {
                 if (item.id === this.viewId) {
@@ -257,7 +258,7 @@ class CalendarView extends View {
 
     selectMode(mode) {
         if (~this.fullCalendarModeList.indexOf(mode) || mode.indexOf('view-') === 0) {
-            let previousMode = this.mode;
+            const previousMode = this.mode;
 
             if (
                 mode.indexOf('view-') === 0 ||
@@ -283,8 +284,8 @@ class CalendarView extends View {
 
             this.calendar.changeView(this.modeViewMap[this.viewMode]);
 
-            let toAgenda = previousMode.indexOf('agenda') !== 0 && mode.indexOf('agenda') === 0;
-            let fromAgenda = previousMode.indexOf('agenda') === 0 && mode.indexOf('agenda') !== 0;
+            const toAgenda = previousMode.indexOf('agenda') !== 0 && mode.indexOf('agenda') === 0;
+            const fromAgenda = previousMode.indexOf('agenda') === 0 && mode.indexOf('agenda') !== 0;
 
             if (
                 toAgenda && !this.fetching ||
@@ -312,7 +313,7 @@ class CalendarView extends View {
     }
 
     toggleScopeFilter(name) {
-        let index = this.enabledScopeList.indexOf(name);
+        const index = this.enabledScopeList.indexOf(name);
 
         if (!~index) {
             this.enabledScopeList.push(name);
@@ -326,13 +327,13 @@ class CalendarView extends View {
     }
 
     getStoredEnabledScopeList() {
-        let key = 'calendarEnabledScopeList';
+        const key = 'calendarEnabledScopeList';
 
         return this.getStorage().get('state', key) || null;
     }
 
     storeEnabledScopeList(enabledScopeList) {
-        let key = 'calendarEnabledScopeList';
+        const key = 'calendarEnabledScopeList';
 
         this.getStorage().set('state', key, enabledScopeList);
     }
@@ -348,25 +349,25 @@ class CalendarView extends View {
             this.$el.find('button[data-action="today"]').removeClass('active');
         }
 
-        let title = this.getTitle();
+        const title = this.getTitle();
 
         this.$el.find('.date-title h4 span').text(title);
     }
 
     isToday() {
-        let view = this.calendar.view;
+        const view = this.calendar.view;
 
-        let todayUnix = moment().unix();
-        let startUnix = moment(view.activeStart).unix();
-        let endUnix = moment(view.activeStart).unix();
+        const todayUnix = moment().unix();
+        const startUnix = moment(view.activeStart).unix();
+        const endUnix = moment(view.activeStart).unix();
 
         return startUnix <= todayUnix && todayUnix < endUnix;
     }
 
     getTitle() {
-        let view = this.calendar.view;
+        const view = this.calendar.view;
 
-        let map = {
+        const map = {
             timeGridWeek: 'week',
             timeGridDay: 'day',
             dayGridWeek: 'week',
@@ -374,14 +375,19 @@ class CalendarView extends View {
             dayGridMonth: 'month',
         };
 
-        let viewName = map[view.type] || view.type;
+        const viewName = map[view.type] || view.type;
 
         let title;
 
-        let format = this.titleFormat[viewName];
+        const format = this.titleFormat[viewName];
 
         if (viewName === 'week') {
-            title = this.calendar.formatRange(view.currentStart, view.currentEnd, format);
+            const start = this.dateToMoment(view.currentStart).format(format);
+            const end = this.dateToMoment(view.currentEnd).subtract(1, 'minute').format(format);
+
+            title = start !== end ?
+                start + this.rangeSeparator + end :
+                start;
         } else {
             title = moment(view.currentStart).format(format);
         }
@@ -493,7 +499,7 @@ class CalendarView extends View {
 
     /**
      * @private
-     * @param {string} date
+     * @param {string|Date} date
      * @return {moment.Moment}
      */
     dateToMoment(date)  {
@@ -560,14 +566,14 @@ class CalendarView extends View {
             percent *= -1;
         }
 
-        let alpha = color.substring(7);
+        const alpha = color.substring(7);
 
-        let f = parseInt(color.slice(1, 7), 16),
-            t = percent<0?0:255,
-            p = percent < 0 ?percent *- 1 : percent,
+        const f = parseInt(color.slice(1, 7), 16),
+            t = percent < 0 ? 0 : 255,
+            p = percent < 0 ? percent * -1 : percent,
             R = f >> 16,
-            G = f >> 8&0x00FF,
-            B = f&0x0000FF;
+            G = f >> 8 & 0x00FF,
+            B = f & 0x0000FF;
 
         return "#" + (
             0x1000000 + (
@@ -577,9 +583,13 @@ class CalendarView extends View {
         ).toString(16).slice(1) + alpha;
     }
 
+    /**
+     * @param {EventImpl} event
+     * @param {boolean} [notInitial]
+     */
     handleAllDay(event, notInitial) {
-        let start = event.start ? moment(event.start) : null;
-        let end = event.end ? moment(event.end) : null;
+        let start = event.start ? this.dateToMoment(event.start) : null;
+        const end = event.end ? this.dateToMoment(event.end) : null;
 
         if (this.allDayScopeList.includes(event.scope)) {
             event.allDay = event.allDayCopy = true;
@@ -637,16 +647,16 @@ class CalendarView extends View {
                 (
                     start.format('d') !== end.format('d') &&
                     (end.hours() !== 0 || end.minutes() !== 0)
-                ) ||
+                ) &&
                 (end.unix() - start.unix() >= 86400)
             ) {
                 event.allDay = true;
 
-                if (!notInitial) {
+                //if (!notInitial) {
                     if (end.hours() !== 0 || end.minutes() !== 0) {
                         end.add(1, 'days');
                     }
-                }
+                //}
             } else {
                 event.allDay = false;
             }
@@ -666,10 +676,10 @@ class CalendarView extends View {
     convertToFcEvents(list) {
         this.now = moment.tz(this.getDateTime().getTimeZone());
 
-        let events = [];
+        const events = [];
 
         list.forEach(o => {
-            let event = this.convertToFcEvent(o);
+            const event = this.convertToFcEvent(o);
 
             events.push(event);
         });
@@ -682,10 +692,10 @@ class CalendarView extends View {
      * @return {string}
      */
     convertDateTime(date) {
-        let format = this.getDateTime().internalDateTimeFormat;
-        let timeZone = this.getDateTime().timeZone;
+        const format = this.getDateTime().internalDateTimeFormat;
+        const timeZone = this.getDateTime().timeZone;
 
-        let m = timeZone ?
+        const m = timeZone ?
             moment.tz(date, null, timeZone).utc() :
             moment.utc(date, null);
 
@@ -705,7 +715,7 @@ class CalendarView extends View {
             return;
         }
 
-        let height = this.getCalculatedHeight();
+        const height = this.getCalculatedHeight();
 
         this.calendar.setOption('contentHeight', height);
     }
@@ -717,8 +727,8 @@ class CalendarView extends View {
 
         this.$calendar = this.$el.find('div.calendar');
 
-        let slotDuration = '00:' + this.slotDuration + ':00';
-        let timeFormat = this.getDateTime().timeFormat;
+        const slotDuration = '00:' + this.slotDuration + ':00';
+        const timeFormat = this.getDateTime().timeFormat;
 
         let slotLabelFormat = timeFormat;
 
@@ -734,7 +744,7 @@ class CalendarView extends View {
             slotLabelFormat: slotLabelFormat,
             eventTimeFormat: timeFormat,
             initialView: this.modeViewMap[this.viewMode],
-            defaultRangeSeparator: ' – ',
+            defaultRangeSeparator: this.rangeSeparator,
             weekNumbers: true,
             weekNumberCalculation: 'ISO',
             editable: true,
@@ -766,16 +776,15 @@ class CalendarView extends View {
                 this.adjustSize();
             },
             select: info => {
-                let start = info.startStr;
-                let end = info.endStr;
-
-                let allDay = info.allDay;
+                const start = info.startStr;
+                const end = info.endStr;
+                const allDay = info.allDay;
 
                 let dateEndDate = null;
                 let dateStartDate = null;
 
-                let dateStart = this.convertDateTime(start);
-                let dateEnd = this.convertDateTime(end);
+                const dateStart = this.convertDateTime(start);
+                const dateEnd = this.convertDateTime(end);
 
                 if (allDay) {
                     dateStartDate = moment(start).format('YYYY-MM-DD');
@@ -795,10 +804,10 @@ class CalendarView extends View {
             eventClick: info => {
                 const event = info.event;
 
-                let scope = event.extendedProps.scope;
-                let recordId = event.extendedProps.recordId;
+                const scope = event.extendedProps.scope;
+                const recordId = event.extendedProps.recordId;
 
-                let viewName = this.getMetadata().get(['clientDefs', scope, 'modalViews', 'detail']) ||
+                const viewName = this.getMetadata().get(['clientDefs', scope, 'modalViews', 'detail']) ||
                     'views/modals/detail';
 
                 Espo.Ui.notify(' ... ');
@@ -827,27 +836,27 @@ class CalendarView extends View {
                 });
             },
             datesSet: () => {
-                let date = this.getDateTime().fromIso(this.calendar.getDate().toISOString());
-                let m = moment(this.calendar.getDate());
+                const date = this.getDateTime().fromIso(this.calendar.getDate().toISOString());
+                const m = this.dateToMoment(this.calendar.getDate());
 
                 this.date = date;
 
                 this.trigger('view', m.format('YYYY-MM-DD'), this.mode);
             },
             events: (info, callback) => {
-                let dateTimeFormat = this.getDateTime().internalDateTimeFormat;
+                const dateTimeFormat = this.getDateTime().internalDateTimeFormat;
 
-                let from = moment.tz(info.startStr, info.timeZone);
-                let to = moment.tz(info.endStr, info.timeZone);
+                const from = moment.tz(info.startStr, info.timeZone);
+                const to = moment.tz(info.endStr, info.timeZone);
 
-                let fromStr = from.utc().format(dateTimeFormat);
-                let toStr = to.utc().format(dateTimeFormat);
+                const fromStr = from.utc().format(dateTimeFormat);
+                const toStr = to.utc().format(dateTimeFormat);
 
                 this.fetchEvents(fromStr, toStr, callback);
             },
             eventDrop: info => {
-                let event = /** @type {EventImpl} */info.event;
-                let delta = info.delta;
+                const event = /** @type {EventImpl} */info.event;
+                const delta = info.delta;
 
                 const scope = event.extendedProps.scope;
 
@@ -863,18 +872,18 @@ class CalendarView extends View {
                     return;
                 }
 
-                let start = event.start;
-                let end = event.end;
+                const start = event.start;
+                const end = event.end;
 
-                let dateStart = event.extendedProps.dateStart;
-                let dateEnd = event.extendedProps.dateEnd;
-                let dateStartDate = event.extendedProps.dateStartDate;
-                let dateEndDate = event.extendedProps.dateEndDate;
+                const dateStart = event.extendedProps.dateStart;
+                const dateEnd = event.extendedProps.dateEnd;
+                const dateStartDate = event.extendedProps.dateStartDate;
+                const dateEndDate = event.extendedProps.dateEndDate;
 
-                let attributes = {};
+                const attributes = {};
 
                 if (dateStart) {
-                    let dateString = this.getDateTime()
+                    const dateString = this.getDateTime()
                         .toMoment(dateStart)
                         .add(delta)
                         .format(this.getDateTime().internalDateTimeFormat);
@@ -883,7 +892,7 @@ class CalendarView extends View {
                 }
 
                 if (dateEnd) {
-                    let dateString = this.getDateTime()
+                    const dateString = this.getDateTime()
                         .toMoment(dateEnd)
                         .add(delta)
                         .format(this.getDateTime().internalDateTimeFormat);
@@ -970,25 +979,35 @@ class CalendarView extends View {
             options.eventContent = arg => {
                 const event = /** @type {EventImpl} */arg.event;
 
-                let $content = $('<div>');
+                const $content = $('<div>');
 
                 $content.append(
                     $('<div>')
-                        .addClass('fc-event-title')
-                        .text(event.title)
+                        .append(
+                            $('<div>')
+                                .addClass('fc-event-main-frame')
+                                .append(
+                                    arg.timeText ?
+                                        $('<div>').addClass('fc-event-time').text(arg.timeText) :
+                                        undefined
+                                )
+                                .append(
+                                    $('<div>').addClass('fc-event-title').text(event.title)
+                                )
+                        )
                 );
 
                 const userIdList = event.extendedProps.userIdList || [];
 
                 userIdList.forEach(userId => {
-                    let userName = event.extendedProps.userNameMap[userId] || '';
+                    const userName = event.extendedProps.userNameMap[userId] || '';
                     let avatarHtml = this.getHelper().getAvatarHtml(userId, 'small', 13);
 
                     if (avatarHtml) {
                         avatarHtml += ' ';
                     }
 
-                    let $div = $('<div>')
+                    const $div = $('<div>')
                         .addClass('user')
                         .css({overflow: 'hidden'})
                         .append(avatarHtml)
@@ -1010,7 +1029,7 @@ class CalendarView extends View {
         }
 
         if (this.date) {
-            options.initialDate = moment.utc(this.date).toDate();
+            options.initialDate = this.date;
         } else {
             this.$el.find('button[data-action="today"]').addClass('active');
         }
@@ -1050,7 +1069,7 @@ class CalendarView extends View {
             values.dateEndDate = this.date;
         }
 
-        let attributes = {};
+        const attributes = {};
 
         if (this.options.userId) {
             attributes.assignedUserId = this.options.userId;
@@ -1101,12 +1120,12 @@ class CalendarView extends View {
             url += '&teamIdList=' + encodeURIComponent(this.teamIdList.join(','));
         }
 
-        let agenda = this.mode === 'agendaWeek' || this.mode === 'agendaDay';
+        const agenda = this.mode === 'agendaWeek' || this.mode === 'agendaDay';
 
         url += '&agenda=' + encodeURIComponent(agenda);
 
         Espo.Ajax.getRequest(url).then(data => {
-            let events = this.convertToFcEvents(data);
+            const events = this.convertToFcEvents(data);
 
             callback(events);
 
@@ -1129,19 +1148,19 @@ class CalendarView extends View {
     }
 
     updateModel(model) {
-        let eventId = model.entityType + '-' + model.id;
+        const eventId = model.entityType + '-' + model.id;
 
-        let event = this.calendar.getEventById(eventId);
+        const event = this.calendar.getEventById(eventId);
 
         if (!event) {
             return;
         }
 
-        let attributes = model.getClonedAttributes();
+        const attributes = model.getClonedAttributes();
 
         attributes.scope = model.entityType;
 
-        let data = this.convertToFcEvent(attributes);
+        const data = this.convertToFcEvent(attributes);
 
         this.applyPropsToEvent(event, data);
     }
@@ -1150,9 +1169,9 @@ class CalendarView extends View {
      * @return {Object.<string, *>}
      */
     obtainPropsFromEvent(event) {
-        let props = {};
+        const props = {};
 
-        for (let key in event.extendedProps) {
+        for (const key in event.extendedProps) {
             props[key] = event.extendedProps[key];
         }
 
@@ -1171,23 +1190,18 @@ class CalendarView extends View {
      * @param {Object.<string, *>} props
      */
     applyPropsToEvent(event, props) {
-        for (let key in props) {
-            let value = props[key];
+        if ('start' in props) {
+            event.setDates(props.start, props.end, {allDay: props.allDay});
+        }
 
-            if (key === 'start') {
-                event.setStart(value);
+        for (const key in props) {
+            const value = props[key];
 
-                continue;
-            }
-
-            if (key === 'end') {
-                event.setEnd(value);
-
-                continue;
-            }
-            if (key === 'allDay') {
-                event.setAllDay(value);
-
+            if (
+                key === 'start' ||
+                key === 'end' ||
+                key === 'allDay'
+            ) {
                 continue;
             }
 
@@ -1202,7 +1216,7 @@ class CalendarView extends View {
     }
 
     removeModel(model) {
-        let event = this.calendar.getEventById(model.entityType + '-' + model.id);
+        const event = this.calendar.getEventById(model.entityType + '-' + model.id);
 
         if (!event) {
             return;
@@ -1228,15 +1242,15 @@ class CalendarView extends View {
     }
 
     getColorFromScopeName(scope) {
-        let additionalColorList = this.getMetadata().get('clientDefs.Calendar.additionalColorList') || [];
+        const additionalColorList = this.getMetadata().get('clientDefs.Calendar.additionalColorList') || [];
 
         if (!additionalColorList.length) {
             return;
         }
 
-        let colors = this.getMetadata().get('clientDefs.Calendar.colors') || {};
+        const colors = this.getMetadata().get('clientDefs.Calendar.colors') || {};
 
-        let scopeList = this.getConfig().get('calendarEntityList') || [];
+        const scopeList = this.getConfig().get('calendarEntityList') || [];
 
         let index = 0;
         let j = 0;

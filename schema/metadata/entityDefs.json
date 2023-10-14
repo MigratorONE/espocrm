@@ -341,7 +341,7 @@
                         "properties": {
                             "type": {
                                 "anyOf": [
-                                    {"const": "float"}
+                                    {"const": "float"},
                                     {"const": "currency"}
                                 ]
                             }
@@ -496,6 +496,10 @@
                         "type": "string"
                     },
                     "description": "Validations to be bypassed for the field."
+                },
+                "inlineEditDisabled": {
+                    "type": "boolean",
+                    "default": "Disable inline edit."
                 },
                 "customizationDisabled": {
                     "type": "boolean",
@@ -713,7 +717,7 @@
                         "type": "object",
                         "properties": {
                             "type": {
-                                "enum": ["varchar", "int", "float", "bool"]
+                                "enum": ["varchar", "int", "float", "bool", "foreignId"]
                             },
                             "maxLength": {
                                 "type": "integer"

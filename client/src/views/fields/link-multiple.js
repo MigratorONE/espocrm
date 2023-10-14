@@ -164,6 +164,14 @@ class LinkMultipleFieldView extends BaseFieldView {
     autocompleteMaxCount = null
 
     /**
+     * Trigger autocomplete on empty input.
+     *
+     * @protected
+     * @type {boolean}
+     */
+    autocompleteOnEmpty = false
+
+    /**
      * Select all attributes.
      *
      * @protected
@@ -323,6 +331,10 @@ class LinkMultipleFieldView extends BaseFieldView {
                 this.$element.get(0).focus({preventScroll: true});
             };
         }
+
+        /** @type {Object.<string, *>} */
+        this.panelDefs = this.getMetadata()
+            .get(['clientDefs', this.entityType, 'relationshipPanels', this.name]) || {};
     }
 
     /**
@@ -377,7 +389,7 @@ class LinkMultipleFieldView extends BaseFieldView {
      * Compose an autocomplete URL. Can be extended.
      *
      * @protected
-     * @return {string}
+     * @return {string|Promise<string>}
      */
     getAutocompleteUrl() {
         let url = this.foreignScope + '?&maxSize=' + this.getAutocompleteMaxCount();
@@ -399,20 +411,36 @@ class LinkMultipleFieldView extends BaseFieldView {
             url += '&select=' + select.join(',')
         }
 
-        /** @var {Object.<string, *>} */
-        const panelDefs = this.getMetadata()
-            .get(['clientDefs', this.entityType, 'relationshipPanels', this.name]) || {};
+        if (this.panelDefs.selectHandler) {
+            return new Promise(resolve => {
+                this._getSelectFilters().then(filters => {
+                    if (filters.bool) {
+                        url += '&' + $.param({'boolFilterList': filters.bool});
+                    }
+
+                    if (filters.primary) {
+                        url += '&' + $.param({'primaryFilter': filters.primary});
+                    }
+
+                    if (filters.advanced) {
+                        url += '&' + $.param({'where': filters.advanced});
+                    }
+
+                    resolve(url);
+                });
+            });
+        }
 
         const boolList = [
             ...(this.getSelectBoolFilterList() || []),
-            ...(panelDefs.selectBoolFilterList || []),
+            ...(this.panelDefs.selectBoolFilterList || []),
         ];
 
         if (boolList.length) {
             url += '&' + $.param({'boolFilterList': boolList});
         }
 
-        const primary = this.getSelectPrimaryFilterName() || panelDefs.selectPrimaryFilter;
+        const primary = this.getSelectPrimaryFilterName() || this.panelDefs.selectPrimaryFilterName;
 
         if (primary) {
             url += '&' + $.param({'primaryFilter': primary});
@@ -433,11 +461,20 @@ class LinkMultipleFieldView extends BaseFieldView {
                     setTimeout(() => this.$element.autocomplete('clear'), 300);
                 });
 
+                const minChar = this.autocompleteOnEmpty ? 0 : 1;
+
                 this.$element.autocomplete({
-                    serviceUrl: () => {
-                        return this.getAutocompleteUrl();
+                    lookup: (q, callback) => {
+                        Promise.resolve(this.getAutocompleteUrl(q))
+                            .then(url => {
+                                Espo.Ajax
+                                    .getRequest(url, {q: q})
+                                    .then(response => {
+                                        callback(this._transformAutocompleteResult(response));
+                                    });
+                            });
                     },
-                    minChars: 1,
+                    minChars: minChar,
                     paramName: 'q',
                     noCache: true,
                     autoSelectFirst: true,
@@ -866,9 +903,7 @@ class LinkMultipleFieldView extends BaseFieldView {
     actionSelect() {
         Espo.Ui.notify(' ... ');
 
-        /** @var {Object.<string, *>} */
-        const panelDefs = this.getMetadata()
-            .get(['clientDefs', this.entityType, 'relationshipPanels', this.name]) || {};
+        const panelDefs = this.panelDefs;
 
         const viewName = panelDefs.selectModalView ||
             this.getMetadata().get(`clientDefs.${this.foreignScope}.modalViews.select`) ||
@@ -877,9 +912,7 @@ class LinkMultipleFieldView extends BaseFieldView {
         const mandatorySelectAttributeList = this.mandatorySelectAttributeList ||
             panelDefs.selectMandatoryAttributeList;
 
-        const handler = panelDefs.selectHandler || null;
-
-        let createButton = this.isEditMode() &&
+        const createButton = this.isEditMode() &&
             (!this.createDisabled && !panelDefs.createDisabled || this.forceCreateButton);
 
         let createAttributesProvider = null;
@@ -908,40 +941,19 @@ class LinkMultipleFieldView extends BaseFieldView {
             };
         }
 
-        new Promise(resolve => {
-            if (!handler || this.isSearchMode()) {
-                resolve({});
-
-                return;
-            }
-
-            Espo.loader.requirePromise(handler)
-                .then(Handler => new Handler(this.getHelper()))
-                .then(/** module:handlers/select-related */handler => {
-                    handler.getFilters(this.model)
-                        .then(filters => resolve(filters));
-                });
-        }).then(filters => {
-            const advanced = {...(this.getSelectFilters() || {}), ...(filters.advanced || {})};
-            const boolFilterList = [
-                ...(this.getSelectBoolFilterList() || []),
-                ...(filters.bool || []),
-                ...(panelDefs.selectBoolFilterList || []),
-            ];
-            const primaryFilter = this.getSelectPrimaryFilterName() ||
-                filters.primary || panelDefs.selectPrimaryFilter;
-
+        this._getSelectFilters().then(filters => {
             this.createView('dialog', viewName, {
                 scope: this.foreignScope,
                 createButton: createButton,
-                filters: advanced,
-                boolFilterList: boolFilterList,
-                primaryFilterName: primaryFilter,
+                filters: filters.advanced,
+                boolFilterList: filters.bool,
+                primaryFilterName: filters.primary,
                 filterList: this.getSelectFilterList(),
                 multiple: true,
                 mandatorySelectAttributeList: mandatorySelectAttributeList,
                 forceSelectAllAttributes: this.forceSelectAllAttributes,
                 createAttributesProvider: createAttributesProvider,
+                layoutName: this.panelDefs.selectLayout,
             }, dialog => {
                 dialog.render();
 
@@ -960,6 +972,77 @@ class LinkMultipleFieldView extends BaseFieldView {
                 });
             });
         });
+    }
+
+    /**
+     * @private
+     * @return {Promise<{bool?: string[], advanced?: Object, primary?: string}>}
+     */
+    _getSelectFilters() {
+        const handler = this.panelDefs.selectHandler;
+
+        const localBoolFilterList = this.getSelectBoolFilterList();
+
+        if (!handler || this.isSearchMode()) {
+            const boolFilterList = (localBoolFilterList || this.panelDefs.selectBoolFilterList) ?
+                [
+                    ...(localBoolFilterList || []),
+                    ...(this.panelDefs.selectBoolFilterList || []),
+                ] :
+                undefined;
+
+            return Promise.resolve({
+                primary: this.getSelectPrimaryFilterName() || this.panelDefs.selectPrimaryFilterName,
+                bool: boolFilterList,
+                advanced: this.getSelectFilters() || this.panelDefs.selectPrimaryFilterName || undefined,
+            });
+        }
+
+        return new Promise(resolve => {
+            Espo.loader.requirePromise(handler)
+                .then(Handler => new Handler(this.getHelper()))
+                .then(/** module:handlers/select-related */handler => {
+                    return handler.getFilters(this.model);
+                })
+                .then(filters => {
+                    const advanced = {...(this.getSelectFilters() || {}), ...(filters.advanced || {})};
+                    const primaryFilter = this.getSelectPrimaryFilterName() ||
+                        filters.primary || this.panelDefs.selectPrimaryFilterName;
+
+                    const boolFilterList = (localBoolFilterList || filters.bool || this.panelDefs.selectBoolFilterList) ?
+                        [
+                            ...(localBoolFilterList || []),
+                            ...(filters.bool || []),
+                            ...(this.panelDefs.selectBoolFilterList || []),
+                        ] :
+                        undefined;
+
+                    resolve({
+                        bool: boolFilterList,
+                        primary: primaryFilter,
+                        advanced: advanced,
+                    });
+                });
+        });
+    }
+
+    /**
+     * @private
+     */
+    _transformAutocompleteResult(response) {
+        const list = [];
+
+        response.list.forEach(item => {
+            list.push({
+                id: item.id,
+                name: item.name || item.id,
+                data: item.id,
+                value: item.name || item.id,
+                attributes: item,
+            });
+        });
+
+        return {suggestions: list};
     }
 }
 

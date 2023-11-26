@@ -277,7 +277,9 @@ class Service implements Crud,
                 ->create()
                 ->from($this->entityType)
                 ->withSearchParams(
-                    SearchParams::create()->withSelect(['*'])
+                    SearchParams::create()
+                        ->withSelect(['*'])
+                        ->withPrimaryFilter('one')
                 )
                 ->withAdditionalApplierClassNameList(
                     $this->createSelectApplierClassNameListProvider()->get($this->entityType)
@@ -1385,7 +1387,7 @@ class Service implements Crud,
         }
 
         if (!$id || !$link) {
-            throw new BadRequest;
+            throw new BadRequest();
         }
 
         $this->processForbiddenLinkEditCheck($link);
@@ -1396,6 +1398,7 @@ class Service implements Crud,
             throw new NotFound();
         }
 
+        // Not used link-check deliberately. Only edit access.
         if (!$this->acl->check($entity, AclTable::ACTION_EDIT)) {
             throw new Forbidden();
         }
@@ -1407,7 +1410,7 @@ class Service implements Crud,
         }
 
         if (!$entity instanceof CoreEntity) {
-            throw new LogicException("Only core entities are supported");
+            throw new LogicException("Only core entities are supported.");
         }
 
         $foreignEntityType = $entity->getRelationParam($link, 'entity');

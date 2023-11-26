@@ -27,29 +27,19 @@
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
-namespace Espo\Core\Api;
+namespace Espo\Core\Select\Primary\Filters;
 
-use Espo\Core\Exceptions\BadRequest;
-use Espo\Core\Exceptions\Conflict;
-use Espo\Core\Exceptions\Error;
-use Espo\Core\Exceptions\Forbidden;
-use Espo\Core\Exceptions\NotFound;
+use Espo\Core\Select\Primary\Filter;
+use Espo\ORM\Query\SelectBuilder as QueryBuilder;
 
 /**
- * A route action.
+ * A dummy filter 'one'. Applied only when reading a single record (from the detail view).
+ * Can be detected in a custom AdditionalApplier to distinguish a read request from a find request.
  */
-interface Action
+class One implements Filter
 {
-    /**
-     * Process.
-     *
-     * @param Request $request A request.
-     * @return Response A response. Use ResponseComposer for building.
-     * @throws BadRequest
-     * @throws Forbidden
-     * @throws NotFound
-     * @throws Conflict
-     * @throws Error
-     */
-    public function process(Request $request): Response;
+    public const NAME = 'one';
+
+    public function apply(QueryBuilder $queryBuilder): void
+    {}
 }

@@ -2,28 +2,28 @@
 /************************************************************************
  * This file is part of EspoCRM.
  *
- * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2023 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
+ * EspoCRM – Open Source CRM application.
+ * Copyright (C) 2014-2024 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
  * Website: https://www.espocrm.com
  *
- * EspoCRM is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * EspoCRM is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with EspoCRM. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  * The interactive user interfaces in modified source and object code versions
  * of this program must display Appropriate Legal Notices, as required under
- * Section 5 of the GNU General Public License version 3.
+ * Section 5 of the GNU Affero General Public License version 3.
  *
- * In accordance with Section 7(b) of the GNU General Public License version 3,
+ * In accordance with Section 7(b) of the GNU Affero General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
@@ -56,6 +56,7 @@ use Espo\Core\Utils\Config;
 use Espo\Core\Utils\Log;
 use Espo\Core\Utils\TemplateFileManager;
 use Espo\Tools\UserSecurity\Password\Jobs\RemoveRecoveryRequest;
+use Espo\Tools\UserSecurity\Password\Recovery\UrlValidator;
 
 class RecoveryService
 {
@@ -75,7 +76,8 @@ class RecoveryService
         private Log $log,
         private JobSchedulerFactory $jobSchedulerFactory,
         private ApplicationState $applicationState,
-        private AuthenticationMethodProvider $authenticationMethodProvider
+        private AuthenticationMethodProvider $authenticationMethodProvider,
+        private UrlValidator $urlValidator
     ) {}
 
     /**
@@ -138,6 +140,10 @@ class RecoveryService
 
         if ($config->get('passwordRecoveryDisabled')) {
             throw new Forbidden("Password recovery: Disabled.");
+        }
+
+        if ($url) {
+            $this->urlValidator->validate($url);
         }
 
         /** @var ?User $user */
@@ -353,7 +359,7 @@ class RecoveryService
             ->setTime(
                 DateTime::createNow()
                     ->modify('+' . $lifetime)
-                    ->getDateTime()
+                    ->toDateTime()
             )
             ->setQueue(QueueName::Q1)
             ->schedule();
@@ -555,7 +561,7 @@ class RecoveryService
             return;
         }
 
-        $data->set('lastPasswordRecoveryDate', DateTime::createNow()->getString());
+        $data->set('lastPasswordRecoveryDate', DateTime::createNow()->toString());
 
         $this->entityManager->saveEntity($data);
     }

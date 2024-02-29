@@ -1,22 +1,29 @@
 /************************************************************************
  * This file is part of EspoCRM.
  *
- * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2023 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
+ * EspoCRM – Open Source CRM application.
+ * Copyright (C) 2014-2024 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
  * Website: https://www.espocrm.com
  *
- * EspoCRM is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * EspoCRM is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with EspoCRM. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * The interactive user interfaces in modified source and object code versions
+ * of this program must display Appropriate Legal Notices, as required under
+ * Section 5 of the GNU Affero General Public License version 3.
+ *
+ * In accordance with Section 7(b) of the GNU Affero General Public License version 3,
+ * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
 import BaseFieldView from 'views/fields/base';
@@ -28,9 +35,13 @@ class MapFieldView extends BaseFieldView {
     detailTemplate = 'fields/map/detail'
     listTemplate = 'fields/map/detail'
 
-    addressField = null
-    provider = null
+    /** @type {string} */
+    addressField
+    /** @type {string} */
+    provider
     height = 300
+
+    DEFAULT_PROVIDER = 'Google';
 
     // noinspection JSCheckFunctionSignatures
     data() {
@@ -45,7 +56,7 @@ class MapFieldView extends BaseFieldView {
     setup() {
         this.addressField = this.name.slice(0, this.name.length - 3);
 
-        this.provider = this.options.provider || this.params.provider;
+        this.provider = this.provider || this.getConfig().get('mapProvider') || this.DEFAULT_PROVIDER;
         this.height = this.options.height || this.params.height || this.height;
 
         const addressAttributeList = Object.keys(this.getMetadata().get('fields.address.fields') || {})
@@ -93,71 +104,43 @@ class MapFieldView extends BaseFieldView {
         this.$map = this.$el.find('.map');
 
         if (this.hasAddress()) {
-            this.processSetHeight(true);
-
-            if (this.height === 'auto') {
-                $(window).off('resize.' + this.cid);
-                $(window).on('resize.' + this.cid, this.processSetHeight.bind(this));
-            }
-
-            let methodName = 'afterRender' + this.provider.replace(/\s+/g, '');
-
-            if (typeof this[methodName] === 'function') {
-                this[methodName]();
-            }
-            else {
-                let implClassName = this.getMetadata()
-                    .get(['clientDefs', 'AddressMap', 'implementations', this.provider]);
-
-                if (implClassName) {
-                    Espo.loader.require(implClassName, impl => {
-                        impl.render(this);
-                    });
-                }
-            }
+            this.renderMap();
         }
     }
 
-    // noinspection JSUnusedGlobalSymbols
-    afterRenderGoogle() {
-        if (window.google && window.google.maps) {
-            this.initMapGoogle();
+    renderMap() {
+        this.processSetHeight(true);
+
+        if (this.height === 'auto') {
+            $(window).off('resize.' + this.cid);
+            $(window).on('resize.' + this.cid, this.processSetHeight.bind(this));
+        }
+
+        const rendererId = this.getMetadata().get(['app', 'mapProviders', this.provider, 'renderer']);
+
+        if (rendererId) {
+            Espo.loader.require(rendererId, Renderer => {
+                (new Renderer(this)).render(this.addressData);
+            });
 
             return;
         }
 
-        // noinspection SpellCheckingInspection
-        if (typeof window.mapapiloaded === 'function') {
-            // noinspection SpellCheckingInspection
-            let mapapiloaded = window.mapapiloaded;
+        const methodName = 'afterRender' + this.provider.replace(/\s+/g, '');
 
-            // noinspection SpellCheckingInspection
-            window.mapapiloaded = () => {
-                this.initMapGoogle();
-                mapapiloaded();
-            };
+        if (typeof this[methodName] === 'function') {
+            this[methodName]();
 
             return;
         }
 
-        // noinspection SpellCheckingInspection
-        window.mapapiloaded = () => {
-            this.initMapGoogle();
-        };
+        // For bc.
+        // @todo Remove in v9.0.
+        const implId = this.getMetadata().get(['clientDefs', 'AddressMap', 'implementations', this.provider]);
 
-        let src = 'https://maps.googleapis.com/maps/api/js?callback=mapapiloaded';
-        let apiKey = this.getConfig().get('googleMapsApiKey');
-
-        if (apiKey) {
-            src += '&key=' + apiKey;
+        if (implId) {
+            Espo.loader.require(implId, impl => impl.render(this));
         }
-
-        let scriptElement = document.createElement('script');
-
-        scriptElement.setAttribute('async', 'async');
-        scriptElement.src = src;
-
-        document.head.appendChild(scriptElement);
     }
 
     processSetHeight(init) {
@@ -167,88 +150,13 @@ class MapFieldView extends BaseFieldView {
             height = this.$el.parent().height();
 
             if (init && height <= 0) {
-                setTimeout(() => {
-                    this.processSetHeight(true);
-                }, 50);
+                setTimeout(() => this.processSetHeight(true), 50);
 
                 return;
             }
         }
 
         this.$map.css('height', height + 'px');
-    }
-
-    initMapGoogle() {
-        const geocoder = new google.maps.Geocoder();
-        let map;
-
-        try {
-            // noinspection SpellCheckingInspection
-            map = new google.maps.Map(this.$el.find('.map').get(0), {
-                zoom: 15,
-                center: {lat: 0, lng: 0},
-                scrollwheel: false,
-            });
-        }
-        catch (e) {
-            console.error(e.message);
-
-            return;
-        }
-
-        let address = '';
-
-        if (this.addressData.street) {
-            address += this.addressData.street;
-        }
-
-        if (this.addressData.city) {
-            if (address !== '') {
-                address += ', ';
-            }
-
-            address += this.addressData.city;
-        }
-
-        if (this.addressData.state) {
-            if (address !== '') {
-                address += ', ';
-            }
-
-            address += this.addressData.state;
-        }
-
-        if (this.addressData.postalCode) {
-            if (this.addressData.state || this.addressData.city) {
-                address += ' ';
-            }
-            else {
-                if (address) {
-                    address += ', ';
-                }
-            }
-
-            address += this.addressData.postalCode;
-        }
-
-        if (this.addressData.country) {
-            if (address !== '') {
-                address += ', ';
-            }
-
-            address += this.addressData.country;
-        }
-
-        geocoder.geocode({'address': address}, (results, status) => {
-            if (status === google.maps.GeocoderStatus.OK) {
-                map.setCenter(results[0].geometry.location);
-
-                new google.maps.Marker({
-                    map: map,
-                    position: results[0].geometry.location,
-                });
-            }
-        });
     }
 }
 

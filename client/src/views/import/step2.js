@@ -1,28 +1,28 @@
 /************************************************************************
  * This file is part of EspoCRM.
  *
- * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2023 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
+ * EspoCRM – Open Source CRM application.
+ * Copyright (C) 2014-2024 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
  * Website: https://www.espocrm.com
  *
- * EspoCRM is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * EspoCRM is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with EspoCRM. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  * The interactive user interfaces in modified source and object code versions
  * of this program must display Appropriate Legal Notices, as required under
- * Section 5 of the GNU General Public License version 3.
+ * Section 5 of the GNU Affero General Public License version 3.
  *
- * In accordance with Section 7(b) of the GNU General Public License version 3,
+ * In accordance with Section 7(b) of the GNU Affero General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
@@ -45,17 +45,17 @@ class Step2ImportView extends View {
         },
         /** @this Step2ImportView */
         'click a[data-action="addField"]': function (e) {
-            let field = $(e.currentTarget).data('name');
+            const field = $(e.currentTarget).data('name');
 
             this.addField(field);
         },
         /** @this Step2ImportView */
         'click a[data-action="removeField"]': function (e) {
-            let field = $(e.currentTarget).data('name');
+            const field = $(e.currentTarget).data('name');
 
             this.$el.find('a[data-action="addField"]').parent().removeClass('hidden');
 
-            let index = this.additionalFields.indexOf(field);
+            const index = this.additionalFields.indexOf(field);
 
             if (~index) {
                 this.additionalFields.splice(index, 1);
@@ -76,7 +76,7 @@ class Step2ImportView extends View {
         this.formData = this.options.formData;
         this.scope = this.formData.entityType;
 
-        let mapping = [];
+        const mapping = [];
 
         this.additionalFields = [];
 
@@ -89,7 +89,7 @@ class Step2ImportView extends View {
 
             if (this.formData.previewArray.length > index) {
                 this.formData.previewArray[index].forEach((value, i) => {
-                    let d = {value: value};
+                    const d = {value: value};
 
                     if (this.formData.headerRow) {
                         d.name = this.formData.previewArray[0][i];
@@ -116,19 +116,19 @@ class Step2ImportView extends View {
     }
 
     afterRender() {
-        let $container = $('#mapping-container');
+        const $container = $('#mapping-container');
 
-        let $table = $('<table>')
+        const $table = $('<table>')
             .addClass('table')
             .addClass('table-bordered')
             .css('table-layout', 'fixed');
 
-        let $tbody = $('<tbody>').appendTo($table);
+        const $tbody = $('<tbody>').appendTo($table);
 
         let $row = $('<tr>');
 
         if (this.formData.headerRow) {
-            let $cell = $('<th>')
+            const $cell = $('<th>')
                 .attr('width', '25%')
                 .text(this.translate('Header Row Value', 'labels', 'Import'));
 
@@ -173,13 +173,13 @@ class Step2ImportView extends View {
                 }
             }
 
-            let $select = this.getFieldDropdown(i, selectedName);
+            const $select = this.getFieldDropdown(i, selectedName);
 
             $cell = $('<td>').append($select);
 
             $row.append($cell);
 
-            var value = d.value || '';
+            let value = d.value || '';
 
             if (value.length > 200) {
                 value = value.substring(0, 200) + '...';
@@ -192,20 +192,24 @@ class Step2ImportView extends View {
             $row.append($cell);
 
             if (~['update', 'createAndUpdate'].indexOf(this.formData.action)) {
-                let $checkbox = $('<input>')
+                const $checkbox = $('<input>')
                     .attr('type', 'checkbox')
+                    .addClass('form-checkbox')
                     .attr('id', 'update-by-' + i.toString());
+
+                /** @type {HTMLInputElement} */
+                const checkboxElement = $checkbox.get(0);
 
                 if (!this.formData.updateBy) {
                     if (d.name === 'id') {
-                        $checkbox.attr('checked', true);
+                        checkboxElement.checked = true;
                     }
                 }
                 else if (~this.formData.updateBy.indexOf(i)) {
-                    $checkbox.attr('checked', true);
+                    checkboxElement.checked = true;
                 }
 
-                $cell = $('<td>').append($checkbox);
+                $cell = $('<td>').append(checkboxElement);
 
                 $row.append($cell);
             }
@@ -216,25 +220,46 @@ class Step2ImportView extends View {
         $container.empty();
         $container.append($table);
 
+        this.getDefaultFieldList().forEach(name => {
+            this.addField(name);
+        });
+    }
+
+    /**
+     * @return {string[]}
+     */
+    getDefaultFieldList() {
         if (this.formData.defaultFieldList) {
-            this.formData.defaultFieldList.forEach((name) => {
-                this.addField(name);
-            });
+            return this.formData.defaultFieldList;
         }
+
+        if (!this.formData.defaultValues) {
+            return [];
+        }
+
+        const defaultAttributes = Object.keys(this.formData.defaultValues);
+
+        return this.getFieldManager().getEntityTypeFieldList(this.scope)
+            .filter(field => {
+                const attributeList = this.getFieldManager()
+                    .getEntityTypeFieldActualAttributeList(this.scope, field);
+
+                return attributeList.findIndex(attribute => defaultAttributes.includes(attribute)) !== -1;
+            })
     }
 
     getFieldList() {
-        let defs = this.getMetadata().get('entityDefs.' + this.scope + '.fields');
-        let forbiddenFieldList = this.getAcl().getScopeForbiddenFieldList(this.scope, 'edit');
+        const defs = this.getMetadata().get('entityDefs.' + this.scope + '.fields');
+        const forbiddenFieldList = this.getAcl().getScopeForbiddenFieldList(this.scope, 'edit');
 
         let fieldList = [];
 
-        for (let field in defs) {
+        for (const field in defs) {
             if (~forbiddenFieldList.indexOf(field)) {
                 continue;
             }
 
-            let d = /** @type Object.<string, *> */defs[field];
+            const d = /** @type {Object.<string, *>} */defs[field];
 
             if (!~this.allowedFieldList.indexOf(field) && (d.disabled || d.importDisabled)) {
                 continue;
@@ -252,19 +277,19 @@ class Step2ImportView extends View {
     }
 
     getAttributeList() {
-        let fields = this.getMetadata().get(['entityDefs', this.scope, 'fields']) || {};
-        let forbiddenFieldList = this.getAcl().getScopeForbiddenFieldList(this.scope, 'edit');
+        const fields = this.getMetadata().get(['entityDefs', this.scope, 'fields']) || {};
+        const forbiddenFieldList = this.getAcl().getScopeForbiddenFieldList(this.scope, 'edit');
 
         let attributeList = [];
 
         attributeList.push('id');
 
-        for (let field in fields) {
+        for (const field in fields) {
             if (~forbiddenFieldList.indexOf(field)) {
                 continue;
             }
 
-            let d = /** @type Object.<string, *> */fields[field];
+            const d = /** @type {Object.<string, *>} */fields[field];
 
             if (
                 !~this.allowedFieldList.indexOf(field) &&
@@ -307,8 +332,8 @@ class Step2ImportView extends View {
                 attributeList.push(field);
             }
 
-            var type = d.type;
-            var actualAttributeList = this.getFieldManager().getActualAttributeList(type, field);
+            const type = d.type;
+            let actualAttributeList = this.getFieldManager().getActualAttributeList(type, field);
 
             if (!actualAttributeList.length) {
                 actualAttributeList = [field];
@@ -332,9 +357,9 @@ class Step2ImportView extends View {
     getFieldDropdown(num, name) {
         name = name || false;
 
-        let fieldList = this.getAttributeList();
+        const fieldList = this.getAttributeList();
 
-        let $select = $('<select>')
+        const $select = $('<select>')
             .addClass('form-control')
             .attr('id', 'column-' + num.toString());
 
@@ -342,7 +367,7 @@ class Step2ImportView extends View {
             .val('')
             .text('-' + this.translate('Skip', 'labels', 'Import') + '-');
 
-        let scope = this.formData.entityType;
+        const scope = this.formData.entityType;
 
         $select.append($option);
 
@@ -357,7 +382,7 @@ class Step2ImportView extends View {
             }
             else {
                 if (field.indexOf('Id') === field.length - 2) {
-                    let baseField = field.substr(0, field.length - 2);
+                    const baseField = field.substr(0, field.length - 2);
 
                     if (this.getMetadata().get(['entityDefs', scope, 'fields', baseField])) {
                         label = this.translate(baseField, 'fields', scope) +
@@ -365,7 +390,7 @@ class Step2ImportView extends View {
                     }
                 }
                 else if (field.indexOf('Name') === field.length - 4) {
-                    let baseField = field.substr(0, field.length - 4);
+                    const baseField = field.substr(0, field.length - 4);
 
                     if (this.getMetadata().get(['entityDefs', scope, 'fields', baseField])) {
                         label = this.translate(baseField, 'fields', scope) +
@@ -373,7 +398,7 @@ class Step2ImportView extends View {
                     }
                 }
                 else if (field.indexOf('Type') === field.length - 4) {
-                    let baseField = field.substr(0, field.length - 4);
+                    const baseField = field.substr(0, field.length - 4);
 
                     if (this.getMetadata().get(['entityDefs', scope, 'fields', baseField])) {
                         label = this.translate(baseField, 'fields', scope) +
@@ -381,9 +406,9 @@ class Step2ImportView extends View {
                     }
                 }
                 else if (field.indexOf('phoneNumber') === 0) {
-                    let phoneNumberType = field.substr(11);
+                    const phoneNumberType = field.substr(11);
 
-                    let phoneNumberTypeLabel = this.getLanguage()
+                    const phoneNumberTypeLabel = this.getLanguage()
                         .translateOption(phoneNumberType, 'phoneNumber', scope);
 
                     label = this.translate('phoneNumber', 'fields', scope) +
@@ -393,12 +418,12 @@ class Step2ImportView extends View {
                     field.indexOf('emailAddress') === 0 &&
                     parseInt(field.substr(12)).toString() === field.substr(12)
                 ) {
-                    let emailAddressNum = field.substr(12);
+                    const emailAddressNum = field.substr(12);
 
                     label = this.translate('emailAddress', 'fields', scope) + ' ' + emailAddressNum.toString();
                 }
                 else if (field.indexOf('Ids') === field.length - 3) {
-                    let baseField = field.substr(0, field.length - 3);
+                    const baseField = field.substr(0, field.length - 3);
 
                     if (this.getMetadata().get(['entityDefs', scope, 'fields', baseField])) {
                         label = this.translate(baseField, 'fields', scope) +
@@ -444,19 +469,19 @@ class Step2ImportView extends View {
         let label = this.translate(name, 'fields', this.scope);
         label = this.getHelper().escapeString(label);
 
-        let removeLink =
+        const removeLink =
             '<a role="button" class="pull-right" data-action="removeField" data-name="' + name + '">' +
             '<span class="fas fa-times"></span></a>';
 
-        let html =
+        const html =
             '<div class="cell form-group">' + removeLink + '<label class="control-label">' + label +
             '</label><div class="field" data-name="' + name + '"/></div>';
 
         $('#default-values-container').append(html);
 
-        let type = Espo.Utils.upperCaseFirst(this.model.getFieldParam(name, 'type'));
+        const type = Espo.Utils.upperCaseFirst(this.model.getFieldParam(name, 'type'));
 
-        let viewName =
+        const viewName =
             this.getMetadata().get(['entityDefs', this.scope, 'fields', name, 'view']) ||
             this.getFieldManager().getViewName(type);
 
@@ -495,7 +520,7 @@ class Step2ImportView extends View {
     }
 
     fetch(skipValidation) {
-        let attributes = {};
+        const attributes = {};
 
         this.additionalFields.forEach(field => {
             const view = this.getFieldView(field);
@@ -508,7 +533,7 @@ class Step2ImportView extends View {
         let notValid = false;
 
         this.additionalFields.forEach(field => {
-            let view = this.getFieldView(field);
+            const view = this.getFieldView(field);
 
             notValid = view.validate() || notValid;
         });
@@ -523,7 +548,7 @@ class Step2ImportView extends View {
 
         this.formData.defaultFieldList = Espo.Utils.clone(this.additionalFields);
 
-        var attributeList = [];
+        const attributeList = [];
 
         this.mapping.forEach((d, i) => {
             attributeList.push($('#column-' + i).val());
@@ -532,7 +557,7 @@ class Step2ImportView extends View {
         this.formData.attributeList = attributeList;
 
         if (~['update', 'createAndUpdate'].indexOf(this.formData.action)) {
-            let updateBy = [];
+            const updateBy = [];
 
             this.mapping.forEach((d, i) => {
                 if ($('#update-by-' + i).get(0).checked) {

@@ -1,28 +1,28 @@
 /************************************************************************
  * This file is part of EspoCRM.
  *
- * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2023 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
+ * EspoCRM – Open Source CRM application.
+ * Copyright (C) 2014-2024 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
  * Website: https://www.espocrm.com
  *
- * EspoCRM is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * EspoCRM is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with EspoCRM. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  * The interactive user interfaces in modified source and object code versions
  * of this program must display Appropriate Legal Notices, as required under
- * Section 5 of the GNU General Public License version 3.
+ * Section 5 of the GNU Affero General Public License version 3.
  *
- * In accordance with Section 7(b) of the GNU General Public License version 3,
+ * In accordance with Section 7(b) of the GNU Affero General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
@@ -78,7 +78,8 @@ define('views/admin/layouts/detail', ['views/admin/layouts/grid'], function (Dep
                     'default',
                     'success',
                     'danger',
-                    'warning'
+                    'warning',
+                    'info',
                 ],
                 default: 'default',
                 translation: 'LayoutManager.options.style',
@@ -156,10 +157,10 @@ define('views/admin/layouts/detail', ['views/admin/layouts/grid'], function (Dep
         },
 
         loadLayout: function (callback) {
-            var layout;
-            var model;
+            let layout;
+            let model;
 
-            var promiseList = [];
+            const promiseList = [];
 
             promiseList.push(
                 new Promise(resolve => {
@@ -213,7 +214,7 @@ define('views/admin/layouts/detail', ['views/admin/layouts/grid'], function (Dep
                             this.defaultPanelFieldList = Espo.Utils.clone(this.defaultPanelFieldList);
 
                             layoutLoaded.forEach(item => {
-                                var field = item.name;
+                                let field = item.name;
 
                                 if (!field) {
                                     return;
@@ -244,9 +245,9 @@ define('views/admin/layouts/detail', ['views/admin/layouts/grid'], function (Dep
         },
 
         readDataFromLayout: function (model, layout) {
-            var allFields = [];
+            const allFields = [];
 
-            for (var field in model.defs.fields) {
+            for (const field in model.defs.fields) {
                 if (this.isFieldEnabled(model, field)) {
                     allFields.push(field);
                 }
@@ -259,7 +260,7 @@ define('views/admin/layouts/detail', ['views/admin/layouts/grid'], function (Dep
 
             layout.forEach((panel) => {
                 panel.rows.forEach((row) => {
-                    row.forEach((cell, i) => {
+                    row.forEach(cell => {
                         this.enabledFields.push(cell.name);
                     });
                 });
@@ -270,7 +271,7 @@ define('views/admin/layouts/detail', ['views/admin/layouts/grid'], function (Dep
                     .localeCompare(this.translate(v2, 'fields', this.scope));
             });
 
-            for (var i in allFields) {
+            for (const i in allFields) {
                 if (!_.contains(this.enabledFields, allFields[i])) {
                     this.disabledFields.push(allFields[i]);
                 }
@@ -284,9 +285,19 @@ define('views/admin/layouts/detail', ['views/admin/layouts/grid'], function (Dep
                 }
             }
 
-            var layoutList = model.getFieldParam(name, 'layoutAvailabilityList');
+            const layoutList = model.getFieldParam(name, 'layoutAvailabilityList');
 
-            if (layoutList && !layoutList.includes(this.type)) {
+            let realType = this.realType;
+
+            if (realType === 'detailSmall') {
+                realType = 'detail';
+            }
+
+            if (
+                layoutList &&
+                !layoutList.includes(this.type) &&
+                !layoutList.includes(realType)
+            ) {
                 return;
             }
 
@@ -305,7 +316,7 @@ define('views/admin/layouts/detail', ['views/admin/layouts/grid'], function (Dep
             }
 
             if (this.sidePanelsLayout) {
-                for (var name in this.sidePanelsLayout) {
+                for (const name in this.sidePanelsLayout) {
                     if (name === 'default' && this.sidePanelsLayout[name].disabled) {
                         return false;
                     }
@@ -320,7 +331,7 @@ define('views/admin/layouts/detail', ['views/admin/layouts/grid'], function (Dep
                 return false;
             }
 
-            let fieldList = [];
+            const fieldList = [];
 
             layout.forEach(panel => {
                 panel.rows.forEach(row => {
@@ -343,9 +354,9 @@ define('views/admin/layouts/detail', ['views/admin/layouts/grid'], function (Dep
                     return;
                 }
 
-                let defs = this.getMetadata().get(['entityDefs', this.scope, 'fields', field]) || {};
+                const defs = this.getMetadata().get(['entityDefs', this.scope, 'fields', field]) || {};
 
-                let targetFieldList = defs.detailLayoutIncompatibleFieldList || [];
+                const targetFieldList = defs.detailLayoutIncompatibleFieldList || [];
 
                 targetFieldList.forEach(itemField => {
                     if (isIncompatible) {

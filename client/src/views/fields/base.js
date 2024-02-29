@@ -1,28 +1,28 @@
 /************************************************************************
  * This file is part of EspoCRM.
  *
- * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2023 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
+ * EspoCRM – Open Source CRM application.
+ * Copyright (C) 2014-2024 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
  * Website: https://www.espocrm.com
  *
- * EspoCRM is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * EspoCRM is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with EspoCRM. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  * The interactive user interfaces in modified source and object code versions
  * of this program must display Appropriate Legal Notices, as required under
- * Section 5 of the GNU General Public License version 3.
+ * Section 5 of the GNU Affero General Public License version 3.
  *
- * In accordance with Section 7(b) of the GNU General Public License version 3,
+ * In accordance with Section 7(b) of the GNU Affero General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
@@ -47,6 +47,7 @@ class BaseFieldView extends View {
      * @property {boolean} [inlineEditDisabled] Disable inline edit.
      * @property {boolean} [readOnly] Read-only.
      * @property {string} [labelText] A custom label text.
+     * @property {'detail'|'edit'|'list'|'search'} [mode] A mode.
      */
 
     /**
@@ -200,11 +201,6 @@ class BaseFieldView extends View {
      * @type {Object.<string,*>|null}
      */
     searchParams = null
-
-    /**
-     * @private
-     */
-    _timeout = null
 
     /**
      * Inline edit disabled.
@@ -736,6 +732,13 @@ class BaseFieldView extends View {
         this.readOnly = this.readOnly || this.params.readOnly ||
             this.model.getFieldParam(this.name, 'readOnly') ||
             this.model.getFieldParam(this.name, 'clientReadOnly');
+
+        if (
+            !this.model.isNew() &&
+            this.model.getFieldParam(this.name, 'readOnlyAfterCreate')
+        ) {
+            this.readOnly = true;
+        }
 
         this.readOnlyLocked = this.options.readOnlyLocked || this.readOnly;
 
@@ -1486,9 +1489,9 @@ class BaseFieldView extends View {
             return;
         }
 
-        if (this._popoverMap[element]) {
+        if (this._popoverMap.has(element)) {
             try {
-                this._popoverMap[element].detach();
+                this._popoverMap.get(element).detach();
             }
             catch (e) {}
         }
@@ -1504,17 +1507,23 @@ class BaseFieldView extends View {
 
         popover.show();
 
-        this._popoverMap[element] = popover;
+        this._popoverMap.set(element, popover);
 
         $el.closest('.field').one('mousedown click', () => popover.destroy());
 
         this.once('render remove', () => popover.destroy());
 
-        if (this._timeout) {
-            clearTimeout(this._timeout);
+        this._timeoutMap = this._timeoutMap || new WeakMap();
+
+        if (this._timeoutMap.has(element)) {
+            clearTimeout(this._timeoutMap.get(element));
         }
 
-        this._timeout = setTimeout(() => popover.destroy(), this.VALIDATION_POPOVER_TIMEOUT);
+        const timeout = setTimeout(() => {
+            popover.destroy();
+        }, this.VALIDATION_POPOVER_TIMEOUT);
+
+        this._timeoutMap.set(element, timeout);
     }
 
     /**

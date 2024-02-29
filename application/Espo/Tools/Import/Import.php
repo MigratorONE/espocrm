@@ -2,33 +2,35 @@
 /************************************************************************
  * This file is part of EspoCRM.
  *
- * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2023 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
+ * EspoCRM – Open Source CRM application.
+ * Copyright (C) 2014-2024 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
  * Website: https://www.espocrm.com
  *
- * EspoCRM is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * EspoCRM is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with EspoCRM. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  * The interactive user interfaces in modified source and object code versions
  * of this program must display Appropriate Legal Notices, as required under
- * Section 5 of the GNU General Public License version 3.
+ * Section 5 of the GNU Affero General Public License version 3.
  *
- * In accordance with Section 7(b) of the GNU General Public License version 3,
+ * In accordance with Section 7(b) of the GNU Affero General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
 namespace Espo\Tools\Import;
 
+use Espo\Core\ORM\Type\FieldType;
+use Espo\Core\PhoneNumber\Sanitizer as PhoneNumberSanitizer;
 use Espo\Core\FieldValidation\Exceptions\ValidationError;
 use Espo\Core\Job\JobSchedulerFactory;
 use Espo\Entities\Attachment;
@@ -89,9 +91,9 @@ class Import
         private RecordServiceContainer $recordServiceContainer,
         private JobSchedulerFactory $jobSchedulerFactory,
         private Log $log,
-        private FieldValidationManager $fieldValidationManager
+        private FieldValidationManager $fieldValidationManager,
+        private PhoneNumberSanitizer $phoneNumberSanitizer
     ) {
-
         $this->params = Params::create();
     }
 
@@ -770,7 +772,7 @@ class Import
                     }
 
                     $o = (object) [
-                        'phoneNumber' => $value,
+                        'phoneNumber' => $this->formatPhoneNumber($value, $params),
                         'primary' => true,
                     ];
 
@@ -867,7 +869,7 @@ class Import
             }
 
             $o = (object) [
-                'phoneNumber' => $value,
+                'phoneNumber' => $this->formatPhoneNumber($value, $params),
                 'type' => $type,
                 'primary' => $isPrimary,
             ];
@@ -917,7 +919,6 @@ class Import
     {
         $params = $this->params;
 
-        /** @noinspection PhpRedundantVariableDocTypeInspection */
         /** @var non-empty-string $decimalMark */
         $decimalMark = $params->getDecimalMark() ?? self::DEFAULT_DECIMAL_MARK;
 
@@ -937,11 +938,37 @@ class Import
             return null;
         }
 
+        $fieldDefs = $this->entityManager
+            ->getDefs()
+            ->getEntity($entity->getEntityType())
+            ->tryGetField($attribute);
+
+        if ($fieldDefs) {
+            $fieldType = $fieldDefs->getType();
+
+            if (
+                $fieldType === FieldType::CURRENCY &&
+                $fieldDefs->getParam('decimal')
+            ) {
+                $value = $this->transformFloatString($decimalMark, $value);
+
+                if ($value === null) {
+                    throw ValidationError::create(
+                        new Failure($entity->getEntityType(), $attribute, 'valid')
+                    );
+                }
+
+                return $value;
+            }
+        }
+
         switch ($type) {
             case Entity::DATE:
                 $dt = DateTime::createFromFormat($dateFormat, $value);
 
-                if (!$dt) {
+                $errorData = DateTime::getLastErrors();
+
+                if (!$dt || ($errorData && $errorData['warnings'] !== [])) {
                     throw ValidationError::create(
                         new Failure($entity->getEntityType(), $attribute, 'valid')
                     );
@@ -955,7 +982,9 @@ class Import
 
                 $dt = DateTime::createFromFormat($dateFormat . ' ' . $timeFormat, $value, $timezone);
 
-                if (!$dt) {
+                $errorData = DateTime::getLastErrors();
+
+                if (!$dt || ($errorData && $errorData['warnings'] !== [])) {
                     throw ValidationError::create(
                         new Failure($entity->getEntityType(), $attribute, 'valid')
                     );
@@ -966,24 +995,25 @@ class Import
                 return $dt->format(DateTimeUtil::SYSTEM_DATE_TIME_FORMAT);
 
             case Entity::FLOAT:
-                $a = explode($decimalMark, $value);
+                $value = $this->transformFloatString($decimalMark, $value);
 
-                if (!is_numeric($a[0])) {
+                if ($value === null) {
                     throw ValidationError::create(
                         new Failure($entity->getEntityType(), $attribute, 'valid')
                     );
                 }
 
-                //$a[0] = preg_replace('/[^A-Za-z0-9\-]/', '', $a[0]);
-
-                if (count($a) > 1) {
-                    return floatval($a[0] . '.' . $a[1]);
-                }
-
-                return floatval($a[0]);
+                return floatval($value);
 
             case Entity::INT:
-                if (!is_numeric($value)) {
+                $replaceList = [
+                    ' ',
+                    $decimalMark === '.' ? ',' : '.',
+                ];
+
+                $value = str_replace($replaceList, '', $value);
+
+                if (str_contains($value, $decimalMark) || !is_numeric($value)) {
                     throw ValidationError::create(
                         new Failure($entity->getEntityType(), $attribute, 'valid')
                     );
@@ -1254,5 +1284,38 @@ class Import
         ]);
 
         $errorIndex++;
+    }
+
+    private function formatPhoneNumber(string $value, Params $params): string
+    {
+        return $this->phoneNumberSanitizer->sanitize($value, $params->getPhoneNumberCountry());
+    }
+
+    /**
+     * @param non-empty-string $decimalMark
+     */
+    private function transformFloatString(string $decimalMark, string $value): ?string
+    {
+        $a = explode($decimalMark, $value);
+
+        $left = $a[0];
+        $right = $a[1] ?? null;
+
+        $replaceList = [
+            ' ',
+            $decimalMark === '.' ? ',' : '.',
+        ];
+
+        $left = str_replace($replaceList, '', $left);
+
+        if (!is_numeric($left)) {
+            return null;
+        }
+
+        if ($right !== null) {
+            return $left . '.' . $right;
+        }
+
+        return $left;
     }
 }

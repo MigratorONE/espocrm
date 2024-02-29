@@ -1,28 +1,28 @@
 /************************************************************************
  * This file is part of EspoCRM.
  *
- * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2023 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
+ * EspoCRM – Open Source CRM application.
+ * Copyright (C) 2014-2024 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
  * Website: https://www.espocrm.com
  *
- * EspoCRM is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * EspoCRM is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with EspoCRM. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  * The interactive user interfaces in modified source and object code versions
  * of this program must display Appropriate Legal Notices, as required under
- * Section 5 of the GNU General Public License version 3.
+ * Section 5 of the GNU Affero General Public License version 3.
  *
- * In accordance with Section 7(b) of the GNU General Public License version 3,
+ * In accordance with Section 7(b) of the GNU Affero General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
@@ -33,6 +33,8 @@ import MassActionHelper from 'helpers/mass-action';
 import ExportHelper from 'helpers/export';
 import RecordModal from 'helpers/record-modal';
 import SelectProvider from 'helpers/list/select-provider';
+import RecordListSettingsView from 'views/record/list/settings';
+import ListSettingsHelper from 'helpers/list/settings';
 
 /**
  * A record-list view. Renders and processes list items, actions.
@@ -49,6 +51,7 @@ class ListRecordView extends View {
      * @property {string} action An action.
      * @property {string} [label] A label.
      * @property {string} [link] A link.
+     * @property {string} [text] A text.
      * @property {Object.<string, string|number|boolean>} [data] Data attributes.
      */
 
@@ -342,6 +345,11 @@ class ListRecordView extends View {
      * @property {string} [type] An overridden field type.
      * @property {Object.<string, *>} [params] Overridden field parameters.
      * @property {Object.<string, *>} [options] Field view options.
+     * @property {string} [label] A label.
+     * @property {boolean} [notSortable] Not sortable.
+     * @property {boolean} [hidden] Hidden by default.
+     * @property {boolean} [noLabel] No label.
+     * @property {string} [customLabel] A custom label.
      */
 
     /**
@@ -473,6 +481,11 @@ class ListRecordView extends View {
      * @type {?Object.<string, Object.<string, *>>}
      */
     massActionDefs = null
+
+    /**
+     * @private
+     */
+    _additionalRowActionList
 
     /** @inheritDoc */
     events = {
@@ -974,7 +987,7 @@ class ListRecordView extends View {
                 this.massActionList || this.buttonList.length || this.dropdownItemList.length,
             totalCountFormatted: this.getNumberUtil().formatInt(this.collection.total),
             moreCountFormatted: this.getNumberUtil().formatInt(moreCount),
-            checkboxColumnWidth: this.checkboxColumnWidth,
+            checkboxColumnWidth: this.checkboxColumnWidth + 'px',
             noDataDisabled: noDataDisabled,
         };
     }
@@ -1210,7 +1223,7 @@ class ListRecordView extends View {
         const handler = defs.handler;
 
         if (handler) {
-            const method = 'action' + Espo.Utils.upperCaseFirst(name);
+            const method = defs.actionFunction || 'action' + Espo.Utils.upperCaseFirst(name);
 
             const data = {
                 entityType: this.entityType,
@@ -1978,6 +1991,9 @@ class ListRecordView extends View {
             this.layoutName += 'Portal';
         }
 
+        this.setupRowActionDefs();
+        this.setupSettings();
+
         this.wait(
             this.getHelper().processSetupHandlers(this, this.setupHandlerType)
         );
@@ -2247,6 +2263,8 @@ class ListRecordView extends View {
     setupMassActionItems() {}
 
     /**
+     * @param {module:views/record/list~columnDefs[]} listLayout
+     * @return {module:views/record/list~columnDefs[]}
      * @protected
      */
     filterListLayout(listLayout) {
@@ -2268,16 +2286,22 @@ class ListRecordView extends View {
             return this._cachedFilteredListLayout;
         }
 
-        const filteredListLayout = Espo.Utils.clone(listLayout);
+        const filteredListLayout = Espo.Utils.cloneDeep(listLayout);
 
-        for (const i in listLayout) {
-            const name = listLayout[i].name;
+        const deleteIndexes = [];
 
-            if (name && ~forbiddenFieldList.indexOf(name)) {
-                filteredListLayout[i].customLabel = '';
-                filteredListLayout[i].notSortable = true;
+        for (const [i, item] of listLayout.entries()) {
+            if (item.name && forbiddenFieldList.includes(item.name)) {
+                item.customLabel = '';
+                item.notSortable = true;
+
+                deleteIndexes.push(i)
             }
         }
+
+        deleteIndexes
+            .reverse()
+            .forEach(index => filteredListLayout.splice(index, 1));
 
         this._cachedFilteredListLayout = filteredListLayout;
 
@@ -2286,8 +2310,7 @@ class ListRecordView extends View {
 
     /**
      * @protected
-     * @param {function(Object[]):void} callback A callback.
-     * @private
+     * @param {function(module:views/record/list~columnDefs[]): void} callback A callback.
      */
     _loadListLayout(callback) {
         this.layoutLoadCallbackList.push(callback);
@@ -2366,28 +2389,36 @@ class ListRecordView extends View {
     _getHeaderDefs() {
         const defs = [];
 
-        for (const i in this.listLayout) {
+        const hiddenMap = this._listSettingsHelper ?
+            this._listSettingsHelper.getHiddenColumnMap() : {};
+
+        // noinspection JSIncompatibleTypesComparison
+        if (!this.listLayout || !Array.isArray(this.listLayout)) {
+            return [];
+        }
+
+        for (const col of this.listLayout) {
             let width = false;
 
-            if ('width' in this.listLayout[i] && this.listLayout[i].width !== null) {
-                width = this.listLayout[i].width + '%';
+            if ('width' in col && col.width !== null) {
+                width = col.width + '%';
             }
-            else if ('widthPx' in this.listLayout[i]) {
-                width = this.listLayout[i].widthPx;
+            else if ('widthPx' in col) {
+                width = col.widthPx + 'px';
             }
 
-            const itemName = this.listLayout[i].name;
-            const label = this.listLayout[i].label || itemName;
+            const itemName = col.name;
+            const label = col.label || itemName;
 
             const item = {
                 name: itemName,
-                isSortable: !(this.listLayout[i].notSortable || false),
+                isSortable: !(col.notSortable || false),
                 width: width,
-                align: ('align' in this.listLayout[i]) ? this.listLayout[i].align : false,
+                align: ('align' in col) ? col.align : false,
             };
 
-            if ('customLabel' in this.listLayout[i]) {
-                item.customLabel = this.listLayout[i].customLabel;
+            if ('customLabel' in col) {
+                item.customLabel = col.customLabel;
                 item.hasCustomLabel = true;
                 item.label = item.customLabel;
             }
@@ -2395,7 +2426,7 @@ class ListRecordView extends View {
                 item.label = this.translate(label, 'fields', this.collection.entityType);
             }
 
-            if (this.listLayout[i].noLabel) {
+            if (col.noLabel) {
                 item.label = null;
             }
 
@@ -2404,6 +2435,20 @@ class ListRecordView extends View {
 
                 if (item.isSorted) {
                     item.isDesc = this.collection.order === 'desc' ;
+                }
+            }
+
+            if (itemName && hiddenMap[itemName]) {
+                continue;
+            }
+
+            if (itemName) {
+                if (hiddenMap[itemName]) {
+                    continue;
+                }
+
+                if (col.hidden && !(itemName in hiddenMap)) {
+                    continue;
                 }
             }
 
@@ -2431,7 +2476,7 @@ class ListRecordView extends View {
             }
 
             defs.push({
-                width: this.rowActionsColumnWidth,
+                width: this.rowActionsColumnWidth + 'px',
                 html: html,
                 className: 'action-cell',
             });
@@ -2456,8 +2501,10 @@ class ListRecordView extends View {
             });
         }
 
-        for (const i in listLayout) {
-            const col = listLayout[i];
+        const hiddenMap = this._listSettingsHelper ?
+            this._listSettingsHelper.getHiddenColumnMap() : {};
+
+        for (const col of listLayout) {
             const type = col.type || model.getFieldType(col.name) || 'base';
 
             if (!col.name) {
@@ -2501,6 +2548,16 @@ class ListRecordView extends View {
                     }
 
                     item.options[optionName] = col.options[optionName];
+                }
+            }
+
+            if (col.name) {
+                if (hiddenMap[col.name]) {
+                    continue;
+                }
+
+                if (col.hidden && !(col.name in hiddenMap)) {
+                    continue;
                 }
             }
 
@@ -2598,8 +2655,10 @@ class ListRecordView extends View {
     getRowActionsDefs() {
         const options = {
             defs: {
-                params: {}
+                params: {},
             },
+            additionalActionList: this._additionalRowActionList || [],
+            scope: this.scope,
         };
 
         if (this.options.rowActionsOptions) {
@@ -2612,7 +2671,7 @@ class ListRecordView extends View {
             columnName: 'buttons',
             name: 'buttonsField',
             view: this.rowActionsView,
-            options: options
+            options: options,
         };
     }
 
@@ -2736,11 +2795,12 @@ class ListRecordView extends View {
             this.createView(key, 'views/base', {
                 model: model,
                 acl: acl,
+                rowActionHandlers: this._rowActionHandlers || {},
                 selector: '.list-row[data-id="' + key + '"]',
-                optionsToPass: ['acl'],
+                optionsToPass: ['acl', 'rowActionHandlers'],
                 layoutDefs: {
                     type: this._internalLayoutType,
-                    layout: internalLayout
+                    layout: internalLayout,
                 },
                 setViewBeforeCallback: this.options.skipBuildRows && !this.isRendered(),
             }, callback);
@@ -3273,6 +3333,104 @@ class ListRecordView extends View {
         }
 
         return minWidth;
+    }
+
+    setupRowActionDefs() {
+        this._rowActionHandlers = {};
+
+        const list = this.options.additionalRowActionList;
+
+        if (!list) {
+            return;
+        }
+
+        this._additionalRowActionList = list;
+
+        const defs = this.getMetadata().get(`clientDefs.${this.scope}.rowActionDefs`) || {};
+
+        const promiseList = list.map(action => {
+            /** @type {{handler: string, label?: string, labelTranslation?: string}} */
+            const itemDefs = defs[action] || {};
+
+            if (!itemDefs.handler) {
+                return Promise.resolve();
+            }
+
+            return Espo.loader.requirePromise(itemDefs.handler)
+                .then(Handler => {
+                    this._rowActionHandlers[action] = new Handler(this);
+
+                    return true;
+                });
+        });
+
+        this.wait(Promise.all(promiseList));
+    }
+
+    // noinspection JSUnusedGlobalSymbols
+    actionRowAction(data) {
+        const action = data.actualAction;
+        const id = data.id;
+
+        if (!action) {
+            return;
+        }
+
+        /** @type {{process: function(module:model, string)}} */
+        const handler = (this._rowActionHandlers || {})[action];
+
+        if (!handler) {
+            console.warn(`No handler for action ${action}.`);
+
+            return;
+        }
+
+        const model = this.collection.get(id);
+
+        if (!model) {
+            return;
+        }
+
+        handler.process(model, action);
+    }
+
+    /**
+     * @private
+     */
+    setupSettings() {
+        if (!this.options.settingsEnabled || !this.collection.entityType || !this.layoutName) {
+            return;
+        }
+
+        if (
+            !this.getMetadata().get(`scopes.${this.entityType}.object`) ||
+            this.getConfig().get('listViewSettingsDisabled')
+        ) {
+            return;
+        }
+
+        this._listSettingsHelper = new ListSettingsHelper(
+            this.entityType,
+            this.layoutName,
+            this.getUser().id,
+            this.getStorage()
+        );
+
+        const view = new RecordListSettingsView({
+            layoutProvider: () => this.listLayout,
+            helper: this._listSettingsHelper,
+            entityType: this.entityType,
+            onChange: () => {
+                this._internalLayout = null;
+
+                Espo.Ui.notify(' ... ');
+
+                this.collection.fetch()
+                    .then(() => Espo.Ui.notify(false));
+            },
+        });
+
+        this.assignView('settings', view, '.settings-container');
     }
 }
 

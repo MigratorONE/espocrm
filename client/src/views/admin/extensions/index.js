@@ -1,28 +1,28 @@
 /************************************************************************
  * This file is part of EspoCRM.
  *
- * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2023 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
+ * EspoCRM – Open Source CRM application.
+ * Copyright (C) 2014-2024 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
  * Website: https://www.espocrm.com
  *
- * EspoCRM is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * EspoCRM is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with EspoCRM. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  * The interactive user interfaces in modified source and object code versions
  * of this program must display Appropriate Legal Notices, as required under
- * Section 5 of the GNU General Public License version 3.
+ * Section 5 of the GNU Affero General Public License version 3.
  *
- * In accordance with Section 7(b) of the GNU General Public License version 3,
+ * In accordance with Section 7(b) of the GNU Affero General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
@@ -43,7 +43,7 @@ export default Dep.extend({
 
             this.$el.find('.message-container').html('');
 
-            let files = e.currentTarget.files;
+            const files = e.currentTarget.files;
 
             if (files.length) {
                 this.selectFile(files[0]);
@@ -53,16 +53,16 @@ export default Dep.extend({
             this.upload();
         },
         'click [data-action="install"]': function (e) {
-            let id = $(e.currentTarget).data('id');
+            const id = $(e.currentTarget).data('id');
 
-            let name = this.collection.get(id).get('name');
-            let version = this.collection.get(id).get('version');
+            const name = this.collection.get(id).get('name');
+            const version = this.collection.get(id).get('version');
 
             this.run(id, name, version);
 
         },
         'click [data-action="uninstall"]': function (e) {
-            let id = $(e.currentTarget).data('id');
+            const id = $(e.currentTarget).data('id');
 
             this.confirm(this.translate('uninstallConfirmation', 'messages', 'Admin'), () => {
                 Espo.Ui.notify(this.translate('Uninstalling...', 'labels', 'Admin'));
@@ -70,10 +70,12 @@ export default Dep.extend({
                 Espo.Ajax
                     .postRequest('Extension/action/uninstall', {id: id}, {timeout: 0, bypassAppReload: true})
                     .then(() => {
-                        window.location.reload();
+                        Espo.Ui.success(this.translate('Done'));
+
+                        setTimeout(() => window.location.reload(), 500);
                     })
                     .catch(xhr => {
-                        let msg = xhr.getResponseHeader('X-Status-Reason');
+                        const msg = xhr.getResponseHeader('X-Status-Reason');
 
                         this.showErrorNotification(this.translate('Error') + ': ' + msg);
                     });
@@ -116,7 +118,7 @@ export default Dep.extend({
     },
 
     selectFile: function (file) {
-        var fileReader = new FileReader();
+        const fileReader = new FileReader();
 
         fileReader.onload = (e) => {
             this.packageContents = e.target.result;
@@ -201,7 +203,7 @@ export default Dep.extend({
         Espo.Ajax
             .postRequest('Extension/action/install', {id: id}, {timeout: 0, bypassAppReload: true})
             .then(() => {
-                let cache = this.getCache();
+                const cache = this.getCache();
 
                 if (cache) {
                     cache.clear();
@@ -226,7 +228,7 @@ export default Dep.extend({
             .catch(xhr => {
                 this.$el.find('.panel.upload').removeClass('hidden');
 
-                let msg = xhr.getResponseHeader('X-Status-Reason');
+                const msg = xhr.getResponseHeader('X-Status-Reason');
 
                 this.showErrorNotification(this.translate('Error') + ': ' + msg);
             });

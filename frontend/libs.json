@@ -115,6 +115,21 @@
         "amdId": "autonumeric"
     },
     {
+        "src": "node_modules/intl-tel-input/build/js/intlTelInput.js",
+        "bundle": true,
+        "amdId": "intl-tel-input",
+        "suppressAmd": true
+    },
+    {
+        "src": "node_modules/intl-tel-input/build/js/utils.js",
+        "bundle": true,
+        "amdId": "intl-tel-input-utils"
+    },
+    {
+        "bundle": true,
+        "amdId": "intl-tel-input-globals"
+    },
+    {
         "src": "node_modules/summernote/dist/summernote.js",
         "amdId": "summernote",
         "minify": true

@@ -1,34 +1,35 @@
 /************************************************************************
  * This file is part of EspoCRM.
  *
- * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2023 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
+ * EspoCRM – Open Source CRM application.
+ * Copyright (C) 2014-2024 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
  * Website: https://www.espocrm.com
  *
- * EspoCRM is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * EspoCRM is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with EspoCRM. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  * The interactive user interfaces in modified source and object code versions
  * of this program must display Appropriate Legal Notices, as required under
- * Section 5 of the GNU General Public License version 3.
+ * Section 5 of the GNU Affero General Public License version 3.
  *
- * In accordance with Section 7(b) of the GNU General Public License version 3,
+ * In accordance with Section 7(b) of the GNU Affero General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
 /** @module views/fields/wysiwyg */
 
 import TextFieldView from 'views/fields/text';
+import {init as initSummernoteCustom} from 'helpers/misc/summernote-custom';
 
 /**
  * A wysiwyg field.
@@ -50,6 +51,9 @@ class WysiwygFieldView extends TextFieldView {
     validationElementSelector = '.note-editor'
     htmlPurificationDisabled = false
     tableClassName = 'table table-bordered'
+    tableBorderWidth
+    tableCellPadding
+    noStylesheet = false
 
     events = {
         /** @this WysiwygFieldView */
@@ -120,7 +124,7 @@ class WysiwygFieldView extends TextFieldView {
 
                 this.lastHtmlValue = this.model.get(this.name);
 
-                let value = this.htmlToPlain(this.model.get(this.name));
+                const value = this.htmlToPlain(this.model.get(this.name));
 
                 this.disableWysiwygMode();
 
@@ -177,7 +181,7 @@ class WysiwygFieldView extends TextFieldView {
             ['color', ['color']],
             ['para', ['ul', 'ol', 'paragraph']],
             ['height', ['height']],
-            ['table', ['table', 'espoLink', 'espoImage', 'hr']],
+            ['table', ['espoTable', 'espoLink', 'espoImage', 'hr']],
             ['misc', ['codeview', 'fullscreen']],
         ];
 
@@ -192,9 +196,9 @@ class WysiwygFieldView extends TextFieldView {
         this.toolbar.push(['attachment', ['attachment']]);
 
         this.buttons['attachment'] = () => {
-            let ui = $.summernote.ui;
+            const ui = $.summernote.ui;
 
-            let button = ui.button({
+            const button = ui.button({
                 contents: '<i class="fas fa-paperclip"></i>',
                 tooltip: this.translate('Attach File'),
                 click: () => {
@@ -221,7 +225,7 @@ class WysiwygFieldView extends TextFieldView {
     }
 
     getValueForDisplay() {
-        let value = super.getValueForDisplay();
+        const value = super.getValueForDisplay();
 
         if (this.isPlain()) {
             return value;
@@ -247,7 +251,7 @@ class WysiwygFieldView extends TextFieldView {
     }
 
     getValueForEdit() {
-        let value = this.model.get(this.name) || '';
+        const value = this.model.get(this.name) || '';
 
         if (this.htmlPurificationForEditDisabled) {
             return this.sanitizeHtmlLight(value);
@@ -263,7 +267,7 @@ class WysiwygFieldView extends TextFieldView {
             this.$summernote = this.$el.find('.summernote');
         }
 
-        let language = this.getConfig().get('language');
+        const language = this.getConfig().get('language');
 
         if (!(language in $.summernote.lang)) {
             $.summernote.lang[language] = this.getLanguage().translate('summernote', 'sets');
@@ -299,7 +303,7 @@ class WysiwygFieldView extends TextFieldView {
 
         this.$el.find('iframe').removeClass('hidden');
 
-        let $iframe = this.$el.find('iframe');
+        const $iframe = this.$el.find('iframe');
 
         /** @type {HTMLIFrameElement} */
         const iframeElement = this.iframe = $iframe.get(0);
@@ -312,37 +316,41 @@ class WysiwygFieldView extends TextFieldView {
             $iframe.contents().find('a').attr('target', '_blank');
         });
 
-        let documentElement = iframeElement.contentWindow.document;
+        const documentElement = iframeElement.contentWindow.document;
 
         let body = this.sanitizeHtml(this.model.get(this.name) || '');
 
-        let useFallbackStylesheet = this.getThemeManager().getParam('isDark') && this.htmlHasColors(body);
+        const useFallbackStylesheet = this.getThemeManager().getParam('isDark') && this.htmlHasColors(body);
+        const addFallbackClass = this.getThemeManager().getParam('isDark') &&
+            (this.htmlHasColors(body) || this.noStylesheet);
 
-        let $iframeContainer = $iframe.parent();
+        const $iframeContainer = $iframe.parent();
 
-        useFallbackStylesheet ?
+        addFallbackClass ?
             $iframeContainer.addClass('fallback') :
             $iframeContainer.removeClass('fallback');
 
-        let linkElement = iframeElement.contentWindow.document.createElement('link');
+        if (!this.noStylesheet) {
+            const linkElement = iframeElement.contentWindow.document.createElement('link');
 
-        linkElement.type = 'text/css';
-        linkElement.rel = 'stylesheet';
-        linkElement.href = this.getBasePath() + (
-            useFallbackStylesheet ?
-            this.getThemeManager().getIframeFallbackStylesheet() :
-            this.getThemeManager().getIframeStylesheet()
-        );
+            linkElement.type = 'text/css';
+            linkElement.rel = 'stylesheet';
+            linkElement.href = this.getBasePath() + (
+                useFallbackStylesheet ?
+                    this.getThemeManager().getIframeFallbackStylesheet() :
+                    this.getThemeManager().getIframeStylesheet()
+            );
 
-        body = linkElement.outerHTML + body;
+            body = linkElement.outerHTML + body;
+        }
 
         documentElement.write(body);
         documentElement.close();
 
-        let $body = $iframe.contents().find('html body');
+        const $body = $iframe.contents().find('html body');
 
         $body.find('img').each((i, img) => {
-            let $img = $(img);
+            const $img = $(img);
 
             if ($img.css('max-width') !== 'none') {
                 return;
@@ -351,11 +359,11 @@ class WysiwygFieldView extends TextFieldView {
             $img.css('max-width', '100%');
         });
 
-        let $document = $(documentElement);
+        const $document = $(documentElement);
 
         // Make dropdowns closed.
         $document.on('click', () => {
-            let event = new MouseEvent('click', {
+            const event = new MouseEvent('click', {
                 bubbles: true,
             });
 
@@ -364,7 +372,7 @@ class WysiwygFieldView extends TextFieldView {
 
         // Make notifications & global-search popup closed.
         $document.on('mouseup', () => {
-            let event = new MouseEvent('mouseup', {
+            const event = new MouseEvent('mouseup', {
                 bubbles: true,
             });
 
@@ -386,8 +394,8 @@ class WysiwygFieldView extends TextFieldView {
             $iframe[0].dispatchEvent(event);
         });
 
-        let processWidth = function () {
-            let bodyElement = $body.get(0);
+        const processWidth = function () {
+            const bodyElement = $body.get(0);
 
             if (bodyElement) {
                 if (bodyElement.clientWidth !== iframeElement.scrollWidth) {
@@ -404,9 +412,9 @@ class WysiwygFieldView extends TextFieldView {
             });
         }
 
-        let increaseHeightStep = 10;
+        const increaseHeightStep = 10;
 
-        let processIncreaseHeight = function (iteration, previousDiff) {
+        const processIncreaseHeight = function (iteration, previousDiff) {
             $body.css('height', '');
 
             iteration = iteration || 0;
@@ -417,7 +425,7 @@ class WysiwygFieldView extends TextFieldView {
 
             iteration ++;
 
-            let diff = $document.height() - iframeElement.scrollHeight;
+            const diff = $document.height() - iframeElement.scrollHeight;
 
             if (typeof previousDiff !== 'undefined') {
                 if (diff === previousDiff) {
@@ -429,7 +437,7 @@ class WysiwygFieldView extends TextFieldView {
             }
 
             if (diff) {
-                let height = iframeElement.scrollHeight + increaseHeightStep;
+                const height = iframeElement.scrollHeight + increaseHeightStep;
 
                 iframeElement.style.height = height + 'px';
                 processIncreaseHeight(iteration, diff);
@@ -439,15 +447,15 @@ class WysiwygFieldView extends TextFieldView {
             }
         };
 
-        let processBg = () => {
-            let color = iframeElement.contentWindow.getComputedStyle($body.get(0)).backgroundColor;
+        const processBg = () => {
+            const color = iframeElement.contentWindow.getComputedStyle($body.get(0)).backgroundColor;
 
             $iframeContainer.css({
                 backgroundColor: color,
             });
         };
 
-        let processHeight = function (isOnLoad) {
+        const processHeight = function (isOnLoad) {
             if (!isOnLoad) {
                 $iframe.css({
                     overflowY: 'hidden',
@@ -462,7 +470,7 @@ class WysiwygFieldView extends TextFieldView {
                 }
             }
 
-            let $body = $iframe.contents().find('html body');
+            const $body = $iframe.contents().find('html body');
             let height = $body.height();
 
             if (height === 0) {
@@ -495,7 +503,7 @@ class WysiwygFieldView extends TextFieldView {
             $iframe.on('load', () => {
                 processHeight(true);
 
-                if (useFallbackStylesheet) {
+                if (useFallbackStylesheet && !this.noStylesheet) {
                     processBg();
                 }
             });
@@ -524,14 +532,14 @@ class WysiwygFieldView extends TextFieldView {
         this.$element.addClass('hidden');
         this.$summernote.removeClass('hidden');
 
-        let contents = this.getValueForEdit();
+        const contents = this.getValueForEdit();
 
         this.$summernote.html(contents);
 
         this.$summernote.find('style').remove();
         this.$summernote.find('link[ref="stylesheet"]').remove();
 
-        let keyMap = Espo.Utils.cloneDeep($.summernote.options.keyMap);
+        const keyMap = Espo.Utils.cloneDeep($.summernote.options.keyMap);
 
         keyMap.pc['CTRL+K'] = 'espoLink.show';
         keyMap.mac['CMD+K'] = 'espoLink.show';
@@ -555,13 +563,13 @@ class WysiwygFieldView extends TextFieldView {
             keyMap: keyMap,
             callbacks: {
                 onImageUpload: (files) => {
-                    let file = files[0];
+                    const file = files[0];
 
                     Espo.Ui.notify(this.translate('Uploading...'));
 
                     this.uploadInlineAttachment(file)
                         .then(attachment => {
-                            let url = '?entryPoint=attachment&id=' + attachment.id;
+                            const url = '?entryPoint=attachment&id=' + attachment.id;
                             this.$summernote.summernote('insertImage', url);
 
                             Espo.Ui.notify(false);
@@ -585,6 +593,8 @@ class WysiwygFieldView extends TextFieldView {
             dialogsInBody: this.$el,
             codeviewFilter: true,
             tableClassName: this.tableClassName,
+            tableBorderWidth: this.tableBorderWidth,
+            tableCellPadding: this.tableCellPadding,
         };
 
         if (this.height) {
@@ -633,7 +643,7 @@ class WysiwygFieldView extends TextFieldView {
     uploadInlineAttachment(file) {
         return new Promise((resolve, reject) => {
             this.getModelFactory().create('Attachment', attachment => {
-                let fileReader = new FileReader();
+                const fileReader = new FileReader();
 
                 fileReader.onload = (e) => {
                     attachment.set('name', file.name);
@@ -681,7 +691,7 @@ class WysiwygFieldView extends TextFieldView {
             .replace(/<br\s*\/?>/mg, '\n')
             .replace(/<\/p\s*\/?>/mg, '\n\n');
 
-        let $div = $('<div>').html(value);
+        const $div = $('<div>').html(value);
 
         $div.find('style').remove();
         $div.find('link[ref="stylesheet"]').remove();
@@ -708,7 +718,7 @@ class WysiwygFieldView extends TextFieldView {
     }
 
     fetch() {
-        let data = {};
+        const data = {};
 
         if (!this.model.has('isHtml') || this.model.get('isHtml')) {
             let code = this.$summernote.summernote('code');
@@ -717,7 +727,7 @@ class WysiwygFieldView extends TextFieldView {
                 code = '';
             }
 
-            let imageTagString = '<img src="' + window.location.origin + window.location.pathname +
+            const imageTagString = '<img src="' + window.location.origin + window.location.pathname +
                 '?entryPoint=attachment';
 
             code = code.replace(
@@ -765,7 +775,7 @@ class WysiwygFieldView extends TextFieldView {
             }
         }
         else {
-            let offset = $target.offset();
+            const offset = $target.offset();
 
             if (offset) {
                 edgeTop = offset.top;
@@ -773,8 +783,8 @@ class WysiwygFieldView extends TextFieldView {
             }
         }
 
-        let top = this.$el.offset().top;
-        let bottom = top + this.$el.height() - toolbarHeight;
+        const top = this.$el.offset().top;
+        const bottom = top + this.$el.height() - toolbarHeight;
 
         let toStick = false;
 
@@ -811,292 +821,19 @@ class WysiwygFieldView extends TextFieldView {
     }
 
     attachFile() {
-        let $form = this.$el.closest('.record');
+        const $form = this.$el.closest('.record');
 
         $form.find('.field[data-name="' + this.params.attachmentField + '"] input.file').click();
     }
 
     initEspoPlugin() {
-        let langSets = this.getLanguage().get('Global', 'sets', 'summernote') || {
+        const langSets = this.getLanguage().get('Global', 'sets', 'summernote') || {
             image: {},
             link: {},
             video: {},
         };
 
-        $.extend($.summernote.options, {
-            espoImage: {
-                icon: '<i class="note-icon-picture"/>',
-                tooltip: langSets.image.image,
-            },
-            espoLink: {
-                icon: '<i class="note-icon-link"/>',
-                tooltip: langSets.link.link,
-            },
-        });
-
-        $.extend($.summernote.plugins, {
-            'espoImage': function (context) {
-                let ui = $.summernote.ui;
-                let options = context.options;
-                let self = options.espoView;
-                let lang = options.langInfo;
-
-                if (!self) {
-                    return;
-                }
-
-                context.memo('button.espoImage', () => {
-                    let button = ui.button({
-                        contents: options.espoImage.icon,
-                        tooltip: options.espoImage.tooltip,
-                        click() {
-                            context.invoke('espoImage.show');
-                        },
-                    });
-
-                    return button.render();
-                });
-
-                this.initialize = function () {};
-
-                this.destroy = function () {
-                    if (!self) {
-                        return;
-                    }
-
-                    self.clearView('insertImageDialog');
-                };
-
-                this.show = function () {
-                    self.createView('insertImageDialog', 'views/wysiwyg/modals/insert-image', {
-                        labels: {
-                            insert: lang.image.insert,
-                            url: lang.image.url,
-                            selectFromFiles: lang.image.selectFromFiles,
-                        },
-                    }, view => {
-                        view.render();
-
-                        self.listenToOnce(view, 'upload', (target) => {
-                            self.$summernote.summernote('insertImagesOrCallback', target);
-                        });
-
-                        self.listenToOnce(view, 'insert', (target) => {
-                            self.$summernote.summernote('insertImage', target);
-                        });
-
-                        self.listenToOnce(view, 'close', () => {
-                            self.clearView('insertImageDialog');
-                            self.fixPopovers();
-                        });
-                    });
-                };
-            },
-
-            'linkDialog': function (context) {
-                let options = context.options;
-                let self = options.espoView;
-                let lang = options.langInfo;
-
-                if (!self) {
-                    return;
-                }
-
-                this.show = function () {
-                    let linkInfo = context.invoke('editor.getLinkInfo');
-
-                    self.createView('dialogInsertLink', 'views/wysiwyg/modals/insert-link', {
-                        labels: {
-                            insert: lang.link.insert,
-                            openInNewWindow: lang.link.openInNewWindow,
-                            url: lang.link.url,
-                            textToDisplay: lang.link.textToDisplay,
-                        },
-                        linkInfo: linkInfo,
-                    }, view => {
-                        view.render();
-
-                        self.listenToOnce(view, 'insert', (data) => {
-                            self.$summernote.summernote('createLink', data);
-                        });
-
-                        self.listenToOnce(view, 'close', () => {
-                            self.clearView('dialogInsertLink');
-                            self.fixPopovers();
-                        });
-                    });
-                };
-            },
-
-            'espoLink': function (context) {
-                let ui = $.summernote.ui;
-                let options = context.options;
-                let self = options.espoView;
-                let lang = options.langInfo;
-
-                if (!self) {
-                    return;
-                }
-
-                let isMacLike = /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform);
-
-                context.memo('button.espoLink', function () {
-                    let button = ui.button({
-                        contents: options.espoLink.icon,
-                        tooltip: options.espoLink.tooltip + ' (' + (isMacLike ? 'CMD+K': 'CTRL+K') +')',
-                        click() {
-                            context.invoke('espoLink.show');
-                        },
-                    });
-
-                    return button.render();
-                });
-
-                this.initialize = function () {
-                    this.$modalBody = self.$el.closest('.modal-body');
-
-                    this.isInModal = this.$modalBody.length > 0;
-                };
-
-                this.destroy = function () {
-                    if (!self) {
-                        return;
-                    }
-
-                    self.clearView('dialogInsertLink');
-                };
-
-                this.show = function () {
-                    let linkInfo = context.invoke('editor.getLinkInfo');
-
-                    let container = this.isInModal ? this.$modalBody.get(0) : window;
-
-                    self.createView('dialogInsertLink', 'views/wysiwyg/modals/insert-link', {
-                        labels: {
-                            insert: lang.link.insert,
-                            openInNewWindow: lang.link.openInNewWindow,
-                            url: lang.link.url,
-                            textToDisplay: lang.link.textToDisplay,
-                        },
-                        linkInfo: linkInfo,
-                    }, (view) => {
-                        view.render();
-
-                        self.listenToOnce(view, 'insert', (data) => {
-                            let scrollY = ('scrollY' in container) ?
-                                container.scrollY :
-                                container.scrollTop;
-
-                            self.$summernote.summernote('createLink', data);
-
-                            setTimeout(() => container.scroll(0, scrollY), 20);
-                        });
-
-                        self.listenToOnce(view, 'close', () => {
-                            self.clearView('dialogInsertLink');
-                            self.fixPopovers();
-                        });
-                    });
-                };
-            },
-
-            'fullscreen': function (context) {
-                const options = context.options;
-                const self = options.espoView;
-                //let lang = options.langInfo;
-                //let ui = $.summernote.ui;
-
-                if (!self) {
-                    return;
-                }
-
-                this.$window = $(window);
-                this.$scrollbar = $('html, body');
-
-                this.initialize = function () {
-                    this.$editor = context.layoutInfo.editor;
-                    this.$toolbar = context.layoutInfo.toolbar;
-                    this.$editable = context.layoutInfo.editable;
-                    this.$codable = context.layoutInfo.codable;
-
-                    this.$modal = self.$el.closest('.modal');
-                    this.isInModal = this.$modal.length > 0;
-                };
-
-
-                this.resizeTo = function (size) {
-                    this.$editable.css('height', size.h);
-                    this.$codable.css('height', size.h);
-
-                    // noinspection SpellCheckingInspection
-                    if (this.$codable.data('cmeditor')) {
-                        // noinspection SpellCheckingInspection,JSUnresolvedReference
-                        this.$codable.data('cmeditor').setsize(null, size.h);
-                    }
-                };
-
-                this.onResize = function () {
-                    this.resizeTo({
-                        h: this.$window.height() - this.$toolbar.outerHeight(),
-                    });
-                };
-
-                this.isFullscreen = function () {
-                    return this.$editor.hasClass('fullscreen');
-                };
-
-                this.destroy = function () {
-                    this.$window.off('resize.summernote' + self.cid);
-
-                    if (this.isInModal) {
-                        this.$modal.css('overflow-y', '');
-                    }
-                    else {
-                        this.$scrollbar.css('overflow', '');
-                    }
-                };
-
-                this.toggle = function () {
-                    this.$editor.toggleClass('fullscreen');
-
-                    if (this.isFullscreen()) {
-                        this.$editable.data('orgHeight', this.$editable.css('height'));
-                        this.$editable.data('orgMaxHeight', this.$editable.css('maxHeight'));
-                        this.$editable.css('maxHeight', '');
-
-                        this.$window
-                            .on('resize.summernote' + self.cid, this.onResize.bind(this))
-                            .trigger('resize');
-
-                        if (this.isInModal) {
-                            this.$modal.css('overflow-y', 'hidden');
-                        }
-                        else {
-                            this.$scrollbar.css('overflow', 'hidden');
-                        }
-
-                        // noinspection JSUnusedGlobalSymbols
-                        this._isFullscreen = true;
-                    }
-                    else {
-                        this.$window.off('resize.summernote'  + self.cid);
-                        this.resizeTo({ h: this.$editable.data('orgHeight') });
-                        this.$editable.css('maxHeight', this.$editable.css('orgMaxHeight'));
-
-                        if (this.isInModal) {
-                            this.$modal.css('overflow-y', '');
-                        } else {
-                            this.$scrollbar.css('overflow', '');
-                        }
-
-                        // noinspection JSUnusedGlobalSymbols
-                        this._isFullscreen = false;
-                    }
-
-                    context.invoke('toolbar.updateFullscreen', this.isFullscreen());
-                };
-            },
-        });
+        initSummernoteCustom(langSets);
     }
 
     htmlHasColors(string) {

@@ -2,28 +2,28 @@
 /************************************************************************
  * This file is part of EspoCRM.
  *
- * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2023 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
+ * EspoCRM – Open Source CRM application.
+ * Copyright (C) 2014-2024 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
  * Website: https://www.espocrm.com
  *
- * EspoCRM is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * EspoCRM is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with EspoCRM. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  * The interactive user interfaces in modified source and object code versions
  * of this program must display Appropriate Legal Notices, as required under
- * Section 5 of the GNU General Public License version 3.
+ * Section 5 of the GNU Affero General Public License version 3.
  *
- * In accordance with Section 7(b) of the GNU General Public License version 3,
+ * In accordance with Section 7(b) of the GNU Affero General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
@@ -40,6 +40,7 @@ use Espo\Core\Exceptions\Forbidden;
 use Espo\Core\Exceptions\ForbiddenSilent;
 use Espo\Core\Exceptions\NotFound;
 use Espo\Core\Exceptions\NotFoundSilent;
+use Espo\Core\FieldSanitize\SanitizeManager;
 use Espo\Core\ORM\Entity as CoreEntity;
 use Espo\Core\ORM\Repository\Option\SaveOption;
 use Espo\Core\Record\Access\LinkCheck;
@@ -273,7 +274,7 @@ class Service implements Crud,
     public function getEntity(string $id): ?Entity
     {
         try {
-            $query = $this->selectBuilderFactory
+            $builder = $this->selectBuilderFactory
                 ->create()
                 ->from($this->entityType)
                 ->withSearchParams(
@@ -283,8 +284,11 @@ class Service implements Crud,
                 )
                 ->withAdditionalApplierClassNameList(
                     $this->createSelectApplierClassNameListProvider()->get($this->entityType)
-                )
-                ->build();
+                );
+
+            // @todo Apply access control filter. If a parameter enabled? Check compatibility.
+
+            $query = $builder->build();
         }
         catch (BadRequest|Error $e) {
             throw new RuntimeException($e->getMessage());
@@ -367,6 +371,9 @@ class Service implements Crud,
     }
 
     /**
+     * Warning: Do not extend.
+     *
+     * @todo Fix signature.
      * @param TEntity $entity
      * @param stdClass $data
      * @return void
@@ -429,6 +436,19 @@ class Service implements Crud,
         }
 
         return $this->linkCheck;
+    }
+
+    /**
+     * Sanitize input data.
+     *
+     * @param stdClass $data Input data.
+     * @since 8.1.0
+     */
+    public function sanitizeInput(stdClass $data): void
+    {
+        $manager = $this->injectableFactory->create(SanitizeManager::class);
+
+        $manager->process($this->entityType, $data);
     }
 
     /**
@@ -519,7 +539,28 @@ class Service implements Crud,
         unset($data->versionNumber);
 
         $this->filterInput($data);
+        $this->filterReadOnlyAfterCreate($data);
         $this->handleInput($data);
+    }
+
+    private function filterReadOnlyAfterCreate(stdClass $data): void
+    {
+        $fieldDefsList = $this->entityManager
+            ->getDefs()
+            ->getEntity($this->entityType)
+            ->getFieldList();
+
+        foreach ($fieldDefsList as $fieldDefs) {
+            if (!$fieldDefs->getParam('readOnlyAfterCreate')) {
+                continue;
+            }
+
+            $attributeList = $this->fieldUtil->getAttributeList($this->entityType, $fieldDefs->getName());
+
+            foreach ($attributeList as $attribute) {
+                unset($data->$attribute);
+            }
+        }
     }
 
     /**
@@ -684,6 +725,7 @@ class Service implements Crud,
         $entity = $this->getRepository()->getNew();
 
         $this->filterCreateInput($data);
+        $this->sanitizeInput($data);
 
         $entity->set($data);
 
@@ -737,6 +779,7 @@ class Service implements Crud,
         }
 
         $this->filterUpdateInput($data);
+        $this->sanitizeInput($data);
 
         $entity = $this->getEntityBeforeUpdate ?
             $this->getEntity($id) :
@@ -1499,6 +1542,23 @@ class Service implements Crud,
      */
     protected function processForbiddenLinkEditCheck(string $link): void
     {
+        $type = $this->entityManager
+            ->getDefs()
+            ->getEntity($this->entityType)
+            ->tryGetRelation($link)
+            ?->getType();
+
+        if (
+            $type &&
+            !in_array($type, [
+                Entity::MANY_MANY,
+                Entity::HAS_MANY,
+                Entity::HAS_CHILDREN,
+            ])
+        ) {
+            throw new Forbidden("Only manyMany, hasMany & hasChildren relations are allowed.");
+        }
+
         $forbiddenLinkList = $this->acl
             ->getScopeForbiddenLinkList($this->entityType, AclTable::ACTION_EDIT);
 

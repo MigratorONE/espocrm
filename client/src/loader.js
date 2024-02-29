@@ -1,28 +1,28 @@
 /************************************************************************
  * This file is part of EspoCRM.
  *
- * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2023 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
+ * EspoCRM – Open Source CRM application.
+ * Copyright (C) 2014-2024 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
  * Website: https://www.espocrm.com
  *
- * EspoCRM is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * EspoCRM is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with EspoCRM. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  * The interactive user interfaces in modified source and object code versions
  * of this program must display Appropriate Legal Notices, as required under
- * Section 5 of the GNU General Public License version 3.
+ * Section 5 of the GNU Affero General Public License version 3.
  *
- * In accordance with Section 7(b) of the GNU General Public License version 3,
+ * In accordance with Section 7(b) of the GNU Affero General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
@@ -220,7 +220,7 @@
                 const libsData = this._libsConfig[libName];
 
                 if (libsData && libsData.exposeAs) {
-                    let key = libsData.exposeAs;
+                    const key = libsData.exposeAs;
 
                     window[key] = value;
                 }
@@ -237,7 +237,7 @@
                 return 'client/lib/transpiled/src/' + id + '.js';
             }
 
-            let [mod, namePart] = id.split(':');
+            const [mod, namePart] = id.split(':');
 
             if (mod === 'custom') {
                 return 'client/custom/src/' + namePart + '.js';
@@ -350,7 +350,7 @@
                 this._contextId = null;
             }
 
-            let existing = this._get(id);
+            const existing = this._get(id);
 
             if (typeof existing !== 'undefined') {
                 return;
@@ -362,7 +362,7 @@
                 return;
             }
 
-            let indexOfExports = dependencyIds.indexOf('exports');
+            const indexOfExports = dependencyIds.indexOf('exports');
 
             if (Array.isArray(dependencyIds)) {
                 dependencyIds = dependencyIds.map(depId => this._normalizeIdPath(depId, id));
@@ -388,7 +388,7 @@
             }
 
             if (indexOfExports !== -1) {
-                let exports =  args[indexOfExports];
+                const exports = args[indexOfExports];
 
                 // noinspection JSUnresolvedReference
                 value = ('default' in exports) ? exports.default : exports;
@@ -431,7 +431,7 @@
                 list = [];
             }
 
-            let totalCount = list.length;
+            const totalCount = list.length;
 
             if (totalCount === 1) {
                 this._load(list[0], callback, errorCallback);
@@ -450,9 +450,9 @@
                         readyCount++;
 
                         if (readyCount === totalCount) {
-                            let args = [];
+                            const args = [];
 
-                            for (let i in list) {
+                            for (const i in list) {
                                 args.push(loaded[list[i]]);
                             }
 
@@ -626,7 +626,7 @@
                 exportsTo = 'window';
                 exportsAs = null;
 
-                let isDefinedLib = realName in this._libsConfig;
+                const isDefinedLib = realName in this._libsConfig;
 
                 if (isDefinedLib) {
                     const libData = this._libsConfig[realName] || {};
@@ -707,13 +707,13 @@
                 const restoredId = this._restoreId(id);
 
                 if (restoredId in this._bundleMapping) {
-                    let bundleName = this._bundleMapping[restoredId];
+                    const bundleName = this._bundleMapping[restoredId];
 
                     this._requireBundle(bundleName).then(() => {
-                        let value = this._get(id);
+                        const value = this._get(id);
 
                         if (typeof value === 'undefined') {
-                            let msg = `Could not obtain module '${restoredId}' from bundle '${bundleName}'.`;
+                            const msg = `Could not obtain module '${restoredId}' from bundle '${bundleName}'.`;
                             console.error(msg);
 
                             throw new Error(msg);
@@ -810,7 +810,7 @@
             }
 
             this._bundlePromiseMap[name] = new Promise(resolve => {
-                let list = dependencies.map(item => {
+                const list = dependencies.map(item => {
                     if (item.indexOf('bundle!') === 0) {
                         return this._requireBundle(item.substring(7));
                     }
@@ -839,7 +839,7 @@
             }
 
             if (this._cacheTimestamp) {
-                let sep = (src.indexOf('?') > -1) ? '&' : '?';
+                const sep = (src.indexOf('?') > -1) ? '&' : '?';
 
                 src += sep + 'r=' + this._cacheTimestamp;
             }
@@ -1074,7 +1074,7 @@
         }
     }
 
-    let loader = new Loader();
+    const loader = new Loader();
 
     // noinspection JSUnusedGlobalSymbols
 

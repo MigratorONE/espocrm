@@ -1,28 +1,28 @@
 /************************************************************************
  * This file is part of EspoCRM.
  *
- * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2023 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
+ * EspoCRM – Open Source CRM application.
+ * Copyright (C) 2014-2024 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
  * Website: https://www.espocrm.com
  *
- * EspoCRM is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * EspoCRM is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with EspoCRM. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  * The interactive user interfaces in modified source and object code versions
  * of this program must display Appropriate Legal Notices, as required under
- * Section 5 of the GNU General Public License version 3.
+ * Section 5 of the GNU Affero General Public License version 3.
  *
- * In accordance with Section 7(b) of the GNU General Public License version 3,
+ * In accordance with Section 7(b) of the GNU Affero General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
@@ -75,7 +75,10 @@ class MainView extends View {
      * @property {string} [configCheck] A config parameter defining a menu item availability.
      *   If starts with `!`, then the result is negated.
      * @property {module:utils~AccessDefs[]} [accessDataList] Access definitions.
-     * @property {string} [initFunction] An init function.
+     * @property {string} [handler] A handler.
+     * @property {string} [initFunction] An init method in the handler.
+     * @property {string} [actionFunction] An action method in the handler.
+     * @property {string} [checkVisibilityFunction] A method in the handler that determine whether an item is available.
      * @property {function()} [onClick] A click handler.
      */
 
@@ -127,7 +130,7 @@ class MainView extends View {
         this.options.params = this.options.params || {};
 
         if (this.name && this.scope) {
-            let key = this.name.charAt(0).toLowerCase() + this.name.slice(1);
+            const key = this.name.charAt(0).toLowerCase() + this.name.slice(1);
 
             this.menu = this.getMetadata().get(['clientDefs', this.scope, 'menu', key]) || {};
         }
@@ -150,21 +153,42 @@ class MainView extends View {
             );
         }
 
+        this._reRenderHeaderOnSync = false;
+
+        this._menuHandlers = {};
+
         this.headerActionItemTypeList.forEach(type => {
             this.menu[type] = this.menu[type] || [];
             this.menu[type] = this.menu[type].concat(globalMenu[type] || []);
 
-            let itemList = this.menu[type];
+            const itemList = this.menu[type];
 
             itemList.forEach(item => {
-                let viewObject = this;
+                const viewObject = this;
 
-                if (item.initFunction && item.data.handler) {
+                if (
+                    (item.initFunction || item.checkVisibilityFunction) &&
+                    (item.handler || item.data && item.data.handler)
+                ) {
                     this.wait(new Promise(resolve => {
-                        Espo.loader.require(item.data.handler, Handler => {
-                            let handler = new Handler(viewObject);
+                        const handler = item.handler || item.data.handler;
 
-                            handler[item.initFunction].call(handler);
+                        Espo.loader.require(handler, Handler => {
+                            const handler = new Handler(viewObject);
+
+                            const name = item.name || item.action;
+
+                            if (name) {
+                                this._menuHandlers[name] = handler;
+                            }
+
+                            if (item.initFunction) {
+                                handler[item.initFunction].call(handler);
+                            }
+
+                            if (item.checkVisibilityFunction && this.model) {
+                                this._reRenderHeaderOnSync = true;
+                            }
 
                             resolve();
                         });
@@ -172,6 +196,22 @@ class MainView extends View {
                 }
             });
         });
+
+        if (this.model) {
+            this.whenReady().then(() => {
+                if (!this._reRenderHeaderOnSync) {
+                    return;
+                }
+
+                this.listenTo(this.model, 'sync', () => {
+                    if (!this.getHeaderView()) {
+                        return;
+                    }
+
+                    this.getHeaderView().reRender();
+                });
+            });
+        }
 
         this.updateLastUrl();
 
@@ -195,7 +235,7 @@ class MainView extends View {
     setupFinal() {
         if (this.shortcutKeys) {
             this.events['keydown.main'] = e => {
-                let key = Espo.Utils.getKeyFromKeyEvent(e);
+                const key = Espo.Utils.getKeyFromKeyEvent(e);
 
                 if (typeof this.shortcutKeys[key] === 'function') {
                     this.shortcutKeys[key].call(this, e.originalEvent);
@@ -203,7 +243,7 @@ class MainView extends View {
                     return;
                 }
 
-                let actionName = this.shortcutKeys[key];
+                const actionName = this.shortcutKeys[key];
 
                 if (!actionName) {
                     return;
@@ -212,7 +252,7 @@ class MainView extends View {
                 e.preventDefault();
                 e.stopPropagation();
 
-                let methodName = 'action' + Espo.Utils.upperCaseFirst(actionName);
+                const methodName = 'action' + Espo.Utils.upperCaseFirst(actionName);
 
                 if (typeof this[methodName] === 'function') {
                     this[methodName]();
@@ -245,7 +285,7 @@ class MainView extends View {
             return {};
         }
 
-        let menu = {};
+        const menu = {};
 
         this.headerActionItemTypeList.forEach(type => {
             (this.menu[type] || []).forEach(item => {
@@ -278,6 +318,14 @@ class MainView extends View {
                 item.name = item.name || item.action;
                 item.action = item.action || null;
 
+                if (this._menuHandlers[item.name] && item.checkVisibilityFunction) {
+                    const handler = this._menuHandlers[item.name];
+
+                    if (!handler[item.checkVisibilityFunction](item.name)) {
+                        return;
+                    }
+                }
+
                 if (item.labelTranslation) {
                     item.html = this.getHelper().escapeString(
                         this.getLanguage().translatePath(item.labelTranslation)
@@ -308,13 +356,13 @@ class MainView extends View {
      * @returns {string} HTML
      */
     buildHeaderHtml(itemList) {
-        let $itemList = itemList.map(item => {
+        const $itemList = itemList.map(item => {
             return $('<div>')
                 .addClass('breadcrumb-item')
                 .append(item);
         });
 
-        let $div = $('<div>')
+        const $div = $('<div>')
             .addClass('header-breadcrumbs');
 
         $itemList.forEach(($item, i) => {
@@ -355,7 +403,7 @@ class MainView extends View {
      * @param {Object} data
      */
     actionShowModal(data) {
-        let view = data.view;
+        const view = data.view;
 
         if (!view) {
             return;
@@ -391,7 +439,7 @@ class MainView extends View {
         if (item) {
             item.name = item.name || item.action || Espo.Utils.generateId();
 
-            let name = item.name;
+            const name = item.name;
 
             let index = -1;
 
@@ -480,6 +528,10 @@ class MainView extends View {
      * @param {string} name A name.
      */
     disableMenuItem(name) {
+        if (!this.$headerActionsContainer) {
+            return;
+        }
+
         this.$headerActionsContainer
             .find('[data-name="' + name + '"]')
             .addClass('disabled')
@@ -492,6 +544,10 @@ class MainView extends View {
      * @param {string} name A name.
      */
     enableMenuItem(name) {
+        if (!this.$headerActionsContainer) {
+            return;
+        }
+
         this.$headerActionsContainer
             .find('[data-name="' + name + '"]')
             .removeClass('disabled')
@@ -509,11 +565,11 @@ class MainView extends View {
         event.stopPropagation();
 
         this.getRouter().checkConfirmLeaveOut(() => {
-            let options = {
+            const options = {
                 isReturn: true,
             };
 
-            let rootUrl = this.options.rootUrl || this.options.params.rootUrl || '#' + this.scope;
+            const rootUrl = this.options.rootUrl || this.options.params.rootUrl || '#' + this.scope;
 
             this.getRouter().navigate(rootUrl, {trigger: false});
             this.getRouter().dispatch(this.scope, null, options);
@@ -563,9 +619,9 @@ class MainView extends View {
             });
         });
 
-        let processUi = () => {
-            this.$headerActionsContainer.find('li > .action[data-name="'+name+'"]').parent().removeClass('hidden');
-            this.$headerActionsContainer.find('a.action[data-name="'+name+'"]').removeClass('hidden');
+        const processUi = () => {
+            this.$headerActionsContainer.find('li > .action[data-name="' + name + '"]').parent().removeClass('hidden');
+            this.$headerActionsContainer.find('a.action[data-name="' + name + '"]').removeClass('hidden');
 
             this.controlMenuDropdownVisibility();
             this.adjustButtons();
@@ -604,7 +660,7 @@ class MainView extends View {
      * @private
      */
     controlMenuDropdownVisibility() {
-        let $group = this.$headerActionsContainer.find('.dropdown-group');
+        const $group = this.$headerActionsContainer.find('.dropdown-group');
 
         if (this.hasMenuVisibleDropdownItems()) {
             $group.removeClass('hidden');
@@ -629,13 +685,13 @@ class MainView extends View {
      * @private
      */
     adjustButtons() {
-        let $buttons = this.$headerActionsContainer.find('.btn');
+        const $buttons = this.$headerActionsContainer.find('.btn');
 
         $buttons
             .removeClass('radius-left')
             .removeClass('radius-right');
 
-        let $buttonsVisible = $buttons.filter(':not(.hidden)');
+        const $buttonsVisible = $buttons.filter(':not(.hidden)');
 
         $buttonsVisible.first().addClass('radius-left');
         $buttonsVisible.last().addClass('radius-right');

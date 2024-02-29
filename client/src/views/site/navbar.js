@@ -1,28 +1,28 @@
 /************************************************************************
  * This file is part of EspoCRM.
  *
- * EspoCRM - Open Source CRM application.
- * Copyright (C) 2014-2023 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
+ * EspoCRM – Open Source CRM application.
+ * Copyright (C) 2014-2024 Yurii Kuznietsov, Taras Machyshyn, Oleksii Avramenko
  * Website: https://www.espocrm.com
  *
- * EspoCRM is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * EspoCRM is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with EspoCRM. If not, see http://www.gnu.org/licenses/.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  * The interactive user interfaces in modified source and object code versions
  * of this program must display Appropriate Legal Notices, as required under
- * Section 5 of the GNU General Public License version 3.
+ * Section 5 of the GNU Affero General Public License version 3.
  *
- * In accordance with Section 7(b) of the GNU General Public License version 3,
+ * In accordance with Section 7(b) of the GNU Affero General Public License version 3,
  * these Appropriate Legal Notices must retain the display of the "EspoCRM" word.
  ************************************************************************/
 
@@ -54,14 +54,6 @@ class NavbarSiteView extends View {
         /** @this NavbarSiteView */
         'click a.navbar-brand.nav-link': function () {
             this.xsCollapse();
-        },
-        /** @this NavbarSiteView */
-        'click a[data-action="quick-create"]': function (e) {
-            e.preventDefault();
-
-            const scope = $(e.currentTarget).data('name');
-
-            this.quickCreate(scope);
         },
         /** @this NavbarSiteView */
         'click a.minimizer': function () {
@@ -100,10 +92,9 @@ class NavbarSiteView extends View {
             tabDefsList2: this.tabDefsList.filter(item => item.isInMore),
             title: this.options.title,
             menuDataList: this.getMenuDataList(),
-            quickCreateList: this.quickCreateList,
-            enableQuickCreate: this.quickCreateList.length > 0,
             userId: this.getUser().id,
             logoSrc: this.getLogoSrc(),
+            itemDataList: this.getItemDataList(),
         };
     }
 
@@ -148,7 +139,7 @@ class NavbarSiteView extends View {
             !isSide &&
             !$target.parent().hasClass('more-dropdown-menu')
         ) {
-            let maxHeight = windowHeight - rectItem.bottom;
+            const maxHeight = windowHeight - rectItem.bottom;
 
             this.handleGroupMenuScrolling($menu, $target, maxHeight);
 
@@ -360,10 +351,6 @@ class NavbarSiteView extends View {
         return tabList;
     }
 
-    getQuickCreateList() {
-        return this.getConfig().get('quickCreateList') || [];
-    }
-
     setup() {
         this.getRouter().on('routed', (e) => {
             if (e.controller) {
@@ -375,30 +362,38 @@ class NavbarSiteView extends View {
             this.selectTab(false);
         });
 
+        const itemDefs = this.getMetadata().get(['app', 'clientNavbar', 'items']) || {};
+
+        /** @type {string[]} */
+        this.itemList = Object.keys(itemDefs)
+            .filter(name => !itemDefs[name].disabled)
+            .sort((name1, name2) => {
+                const order1 = itemDefs[name1].order || 0;
+                const order2 = itemDefs[name2].order || 0;
+
+                return order1 - order2;
+            });
+
         this.createView('notificationsBadge', 'views/notification/badge', {
             selector: '.notifications-badge-container',
         });
 
         const setup = () => {
-            this.setupQuickCreateList();
             this.setupTabDefsList();
+
+            return Promise
+                .all(this.itemList.map(item => this.createItemView(item)));
+        };
+
+        const update = () => {
+            setup().then(() => this.reRender());
         };
 
         this.setupGlobalSearch();
-
         setup();
 
-        this.listenTo(this.getHelper().settings, 'sync', () => {
-            setup();
-
-            this.reRender();
-        });
-
-        this.listenTo(this.getHelper().language, 'sync', () => {
-            setup();
-
-            this.reRender();
-        });
+        this.listenTo(this.getHelper().settings, 'sync', () => update());
+        this.listenTo(this.getHelper().language, 'sync', () => update());
 
         this.once('remove', () => {
             $(window).off('resize.navbar');
@@ -409,24 +404,61 @@ class NavbarSiteView extends View {
         });
     }
 
-    setupQuickCreateList() {
-        const scopes = this.getMetadata().get('scopes') || {};
+    getItemDataList() {
+        const defsMap = {};
 
-        this.quickCreateList = this.getQuickCreateList().filter(scope =>{
-            if (!scopes[scope]) {
-                return false;
-            }
-
-            if ((scopes[scope] || {}).disabled) {
-                return;
-            }
-
-            if ((scopes[scope] || {}).acl) {
-                return this.getAcl().check(scope, 'create');
-            }
-
-            return true;
+        this.itemList.forEach(name => {
+            defsMap[name] = this.getItemDefs(name);
         });
+
+        return this.itemList
+            .filter(name => {
+                const defs = defsMap[name];
+
+                if (!defs) {
+                    return false;
+                }
+
+                const view = this.getView(name + 'Item');
+
+                if ('isAvailable' in view) {
+                    return view.isAvailable();
+                }
+
+                return true;
+            })
+            .map(name => {
+                return {
+                    key: name + 'Item',
+                    name: name,
+                    class: defsMap[name].class || '',
+                };
+            });
+    }
+
+    /**
+     *
+     * @param {string} name
+     * @return {{view: string, class: string}}
+     */
+    getItemDefs(name) {
+        return this.getMetadata().get(['app', 'clientNavbar', 'items', name]);
+    }
+
+    /**
+     * @param {string} name
+     * @return {Promise}
+     */
+    createItemView(name) {
+        const defs = this.getItemDefs(name)
+
+        if (!defs || !defs.view) {
+            return Promise.resolve();
+        }
+
+        const key = name + 'Item';
+
+        return this.createView(key, defs.view, {selector: `[data-item="${name}"]`});
     }
 
     filterTabItem(scope) {
@@ -920,9 +952,15 @@ class NavbarSiteView extends View {
     }
 
     setupTabDefsList() {
-        const tabList = this.getTabList();
+        function isMoreDelimiter(item) {
+            return item === '_delimiter_' || item === '_delimiter-ext_';
+        }
 
-        this.tabList = tabList.filter(item => {
+        function isDivider(item) {
+            return typeof item === 'object' && item.type === 'divider';
+        }
+
+        this.tabList = this.getTabList().filter(item => {
             if (!item) {
                 return false;
             }
@@ -936,25 +974,51 @@ class NavbarSiteView extends View {
                     return true;
                 }
 
-                item.itemList = item.itemList || [];
+                let itemList = (item.itemList || []).filter((item) => {
+                    if (isDivider(item)) {
+                        return true;
+                    }
 
-                item.itemList = item.itemList.filter(item => {
                     return this.filterTabItem(item);
                 });
 
-                return !!item.itemList.length;
+                itemList = itemList.filter((item, i) => {
+                    if (!isDivider(item)) {
+                        return true;
+                    }
+
+                    const nextItem = itemList[i + 1];
+
+                    if (!nextItem) {
+                        return true;
+                    }
+
+                    if (isDivider(nextItem)) {
+                        return false;
+                    }
+
+                    return true;
+                });
+
+                itemList = itemList.filter((item, i) => {
+                    if (!isDivider(item)) {
+                        return true;
+                    }
+
+                    if (i === 0 || i === itemList.length - 1) {
+                        return false;
+                    }
+
+                    return true;
+                });
+
+                item.itemList = itemList;
+
+                return !!itemList.length;
             }
 
             return this.filterTabItem(item);
         });
-
-        function isMoreDelimiter(item) {
-            return item === '_delimiter_' || item === '_delimiter-ext_';
-        }
-
-        function isDivider(item) {
-            return typeof item === 'object' && item.type === 'divider';
-        }
 
         let moreIsMet = false;
 
@@ -1198,19 +1262,6 @@ class NavbarSiteView extends View {
         ]);
 
         return list;
-    }
-
-    quickCreate(scope) {
-        Espo.Ui.notify(' ... ');
-
-        const type = this.getMetadata().get(['clientDefs', scope, 'quickCreateModalType']) || 'edit';
-        const viewName = this.getMetadata().get(['clientDefs', scope, 'modalViews', type]) || 'views/modals/edit';
-
-        this.createView('quickCreate', viewName , {scope: scope}, (view) => {
-            view.once('after:render', () => Espo.Ui.notify(false));
-
-            view.render();
-        });
     }
 
     // noinspection JSUnusedGlobalSymbols
